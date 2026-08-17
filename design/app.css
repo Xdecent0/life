@@ -3691,3 +3691,30 @@ kbd {
     grid-row: auto !important;
   }
 }
+
+/* ---------- места ---------- */
+
+.row--place {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px var(--pad);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.row--place[data-calls="1"] {
+  background: var(--alarm-bg);
+}
+
+/* Оценка стоит рядом с названием, а не в своей колонке: это его свойство,
+   а не отдельная величина, которую с чем-то сравнивают. */
+.stars {
+  color: var(--accent);
+  font-size: 0.85em;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.tcheck--go {
+  border-radius: 50%;
+}

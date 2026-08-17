@@ -59,9 +59,14 @@ export const APPS = [
     key: "places",
     name: "Места",
     what: "Куда сходить и куда уже ходил",
-    href: null,
+    href: "../apps/places/",
     icon: "i-store",
-    ready: false,
+    ready: true,
+    count: (state) => {
+      const all = (state.places ?? []).filter((p) => !p.deleted);
+      const been = all.filter((p) => (p.visits ?? []).length).length;
+      return all.length ? `${all.length - been} хочу · ${been} был` : "пусто";
+    },
   },
 ];
 

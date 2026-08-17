@@ -20,6 +20,7 @@ import { parseTable, parseShelf, parseSynonyms, parseZones, parseRecipe } from "
 import { toStockItem } from "../apps/kitchen/lib/receipt.js";
 import * as TH from "../apps/things/lib/model.js";
 import * as CL from "../apps/clean/lib/model.js";
+import * as PL from "../apps/places/lib/model.js";
 import { priceHistory, bestStore, trackingSummary, weekStart, staples } from "../apps/kitchen/lib/planning.js";
 import { SEED_SHELF, SEED_SYNONYMS, SEED_JUNK, SEED_AISLES } from "../apps/kitchen/lib/store.js";
 
@@ -1056,4 +1057,46 @@ test("состояние комнаты считается по отмеченн
   assert.equal(health.unknown, 2);
   assert.equal(health.total, 3);
   assert.equal(health.due, 0);
+});
+
+test("места: поход — отметка, а не флажок «посещено»", () => {
+  const now = Date.UTC(2026, 7, 17);
+  const day = 86400000;
+
+  const never = { id: "1", name: "Музей", visits: [] };
+  assert.equal(PL.historyLabel(never, now), "ещё не был");
+  assert.equal(PL.lastVisit(never), null);
+
+  // Во второй раз в то же кафе идут не потому, что забыли про первый.
+  const twice = { id: "2", name: "Кофейня", visits: [now - 30 * day, now - 2 * day] };
+  assert.match(PL.historyLabel(twice, now), /^2 раза · 2 дня назад$/);
+  assert.equal(PL.lastVisit(twice), now - 2 * day);
+});
+
+test("места: цикл зовёт обратно только там, где его поставили", () => {
+  const now = Date.UTC(2026, 7, 17);
+  const day = 86400000;
+
+  // Музей, в котором был однажды, не просрочен — цикла у него нет.
+  const museum = { id: "1", name: "Музей", visits: [now - 400 * day], every: null };
+  assert.equal(PL.callsBack(museum, now), false);
+
+  const cafe = { id: "2", name: "Кофейня", visits: [now - 20 * day], every: 7 };
+  assert.equal(PL.callsBack(cafe, now), true);
+
+  const fresh = { id: "3", name: "Бар", visits: [now - 2 * day], every: 7 };
+  assert.equal(PL.callsBack(fresh, now), false);
+});
+
+test("места: вид угадывается по названию, район группируется по написанному", () => {
+  const kinds = PL.SEED_KINDS;
+  assert.equal(PL.kindOf({ name: "Кофейня на углу" }, kinds).name, "еда");
+  assert.equal(PL.kindOf({ name: "Парк Шевченко" }, kinds).name, "прогулка");
+  assert.equal(PL.kindOf({ name: "Что-то странное" }, kinds).name, "прочее");
+
+  const groups = PL.groupBy(
+    [{ id: "1", name: "А", area: "центр" }, { id: "2", name: "Б", area: "" }],
+    "area"
+  );
+  assert.deepEqual(groups.map((g) => g.name).sort(), ["без района", "центр"]);
 });
