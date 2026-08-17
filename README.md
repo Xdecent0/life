@@ -1,73 +1,61 @@
-# Кухня
+# Жизнь
 
-A shopping list that knows what ran out.
+Приложения про быт: что есть дома, что купить, где что лежит, что пора сделать.
+Один хаб, один ключ доступа, одно ядро.
 
-Stock with expiry dates and recipes exist to feed the list with signals — they are not the point. The point is opening the app in a store and seeing what to buy, grouped by aisle, without ever having kept inventory by hand.
+## Почему так
 
-## Why it looks like this
+Приложений будет несколько, и под капотом они одинаковые: записи с состоянием,
+телефон и приватный репозиторий. Значит общее должно жить в одном месте, а не
+копироваться при каждом новом приложении.
 
-No server, no hosting bill, nothing to maintain:
-
-| Piece | Where it lives |
+| Кусок | Где |
 |---|---|
-| App | static PWA on GitHub Pages |
-| Data | private repo, synced over the GitHub API |
-| "Backend" | GitHub Actions, triggered by committing a job file |
+| Хаб — приложения, доступ, пара с телефоном | `hub/` |
+| Всё, что не знает, про что приложение | `core/` |
+| Оформление | `design/app.css` |
+| Приложение | `apps/<имя>/` |
 
-The browser cannot reach third-party origins, so anything that needs the outside world (fetching a fiscal receipt from its QR, importing a recipe from a URL) is written as a job into the data repo. An Action picks it up, does the fetch, and commits the answer back. Round trip is about 30 seconds, and the interface says so instead of faking a spinner.
+Все приложения отдаются с одного адреса, поэтому `localStorage` у них общий.
+Ключ доступа вводится **один раз** и работает везде, включая приложения,
+которых ещё нет. Пара с телефоном — тоже одна на всех.
 
-The code repo is public because GitHub Pages on a private repo requires a paid plan. It contains no personal data — not one line.
-
-## Layout
+## Ядро
 
 ```
-index.html            shell, icon sprite, navigation
-app.css               design system; tokens mirror the approved comps
-app.js                router and chrome
-sw.js                 cache-first shell so the list survives a dead signal
-
-lib/model.js          normalization, shelf life, forecast, aisle grouping
-lib/recipes.js        stock matching, ranking, what cooking consumes
-lib/planning.js       week menu, price history, eating log
-lib/github.js         Contents API transport and the job protocol
-lib/sync.js           per-entry merges, tombstones, history union
-lib/receipt.js        camera, QR, and turning raw lines into stock
-lib/vault.js          markdown tables and recipe notes in, structures out
-lib/state.js          the single mutable state with an outbox
-lib/dom.js            escaping template helper, icons, toasts
-
-screens/*.js          one file per screen: {render, mount, leave, actions}
-data-repo-template/   what goes into the private data repo, incl. the workflow
+core/app.js        манифест приложения: ключ, пустое состояние, пути, коллекции
+core/state.js      единственное изменяемое состояние с исходящей очередью
+core/store.js      запись на диск, размер, честная жалоба когда не влезло
+core/github.js     транспорт к репозиторию данных и протокол заданий
+core/sync.js       слияние запись-за-записью с надгробиями
+core/qr.js         свой QR-кодер: ключ едет через экран и объектив, больше никуда
+core/pair.js       разбор кода подключения
+core/icons.js      один набор значков на все приложения
+core/registry.js   список приложений и что о них известно без запуска
+core/money.js      валюты поверх гривны, по курсу своего дня
+core/send.js       поделиться, скопировать, ссылка в телеграм
+core/vault.js      markdown-таблицы волта в структуры
+core/log.js        кольцевой журнал
 ```
 
-Everything under `lib/` is domain logic that touches neither the DOM nor storage, so it can be reasoned about on its own. Screens never compute — they ask.
+Новое приложение — это манифест плюс экраны. Синк, слияние, пары и оформление
+уже есть.
 
-## Running locally
+## Приложения
 
-Any static server works; ES modules need HTTP rather than `file://`.
+| Приложение | Что | Состояние |
+|---|---|---|
+| [Кухня](apps/kitchen/) | склад, список, рецепты, чеки | работает |
+| Вещи | техника, гарантии, где лежит | не начато |
+| Уборка | что пора делать по дому | не начато |
+| Места | куда сходить и куда уже ходил | не начато |
+
+## Локально
 
 ```bash
-npm run serve
+npm run serve   # http://localhost:8782
+npm test        # 94 проверки доменной логики
 ```
 
-## Tests
-
-```bash
-npm test
-```
-
-33 cases over the pure domain modules. Every one is a bug that actually happened or a rule the interface leans on — Russian morphology in recipe matching, median purchase rhythm, mask ordering in receipt normalization, per-entry sync merges. No DOM, no network, no fixtures beyond the seed tables.
-
-## State of things
-
-Thirteen screens are working end to end: the shopping list with aisle grouping and purchase-rhythm reasons, stock sorted by what spoils first, the item card, receipt intake with disputed-line review, the weekly audit, recipes with stock matching, cooking mode that steps the stock down, the week menu, stores with price comparison, the eating log, receipts, and settings.
-
-Still to do: point it at a real GitHub repo and check that the tax service actually publishes line items for the shops you use. Until then the scan screen offers a demonstration receipt so the whole pipeline can be seen without any setup.
-
-First run seeds demo data so the interface can be judged before a single receipt exists.
-
-## Design
-
-Palette "Рынок": dark green is the interface, terracotta is the only action accent, brick red means expiry and nothing else. Icons are inline SVG at a single stroke weight. No external fonts, no CDN, no analytics — the app is fully self-contained.
-
-Specification and decision log live in the owner's vault under `10 - Проекты/Активные/Кухня`.
+Адреса живьём: [пульт](https://xdecent0.github.io/life/hub/) ·
+[Кухня](https://xdecent0.github.io/life/apps/kitchen/)
