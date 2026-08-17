@@ -36,6 +36,7 @@ life.serve({
     "../../core/registry.js",
     "../../core/reach.js",
     "../../core/keys.js",
+    "../../core/health.js",
     "../../core/screens/card.js",
     "../../core/screens/settings.js",
   ],

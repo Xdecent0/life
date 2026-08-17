@@ -1749,3 +1749,58 @@ test("проекты: неделя начинается с понедельни�
   assert.equal(PJ.weekStart(Date.UTC(2026, 7, 24)), Date.UTC(2026, 7, 24));
   assert.deepEqual(PJ.WEEKDAYS[0], "пн");
 });
+
+/* ------------------------------------------------------------- тишина */
+
+test("тишина: молчание видно по возрасту, а не по ошибке", async () => {
+  const H = await import("../core/health.js");
+  const day = 86400000;
+  const now = Date.now();
+
+  // Всё свежее — жаловаться не на что.
+  assert.deepEqual(H.quiet({ syncedAt: now - 3600e3, queue: [] }, { now }), []);
+
+  const late = H.quiet({ syncedAt: now - 5 * day, queue: [] }, { name: "Кухня", now });
+  assert.deepEqual(late.map((r) => r.key), ["sync"]);
+  assert.match(late[0].said, /Кухня: круг синка не проходил 5 дней/);
+
+  // Возраст очереди считается по самой старой правке: одна, застрявшая на
+  // неделю, хуже двадцати сегодняшних.
+  const stuck = H.quiet({
+    syncedAt: now,
+    queue: [{ at: now }, { at: now - 6 * day }, { at: now }],
+  }, { now });
+  assert.deepEqual(stuck.map((r) => r.key), ["queue"]);
+  assert.match(stuck[0].said, /старшей 6 дней/);
+
+  // Снимок старше трёх дней — отдельная жалоба со своим объяснением.
+  const stale = H.quiet({ syncedAt: now, queue: [] }, { snapshotAt: now - 4 * day, now });
+  assert.deepEqual(stale.map((r) => r.key), ["snapshot"]);
+  assert.match(stale[0].fix, /доска/);
+
+  // Свежий снимок молчит.
+  assert.deepEqual(H.quiet({ syncedAt: now, queue: [] }, { snapshotAt: now - 3600e3, now }), []);
+});
+
+test("тишина: без ключа доступа молчание законно и говорится один раз", async () => {
+  const H = await import("../core/health.js");
+  const day = 86400000;
+  const now = Date.now();
+
+  const rows = H.quiet({
+    syncedAt: now - 10 * day,
+    queue: [{ at: now - 10 * day }, { at: now - 9 * day }],
+  }, { name: "Вещи", keyed: false, now });
+
+  // Одна фраза про настройку вместо трёх про поломку: круга не было, потому что
+  // синкать некуда, и ругаться на это значит ругать человека за свой же вопрос.
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].key, "no-key");
+  assert.match(rows[0].said, /Вещи: 2 правки лежат/);
+
+  // Ключа нет и очередь пуста — молчать совсем.
+  assert.deepEqual(H.quiet({ queue: [] }, { keyed: false, now }), []);
+
+  // Приложение, которое ни разу не синкали, молчит: «ни разу» — не поломка.
+  assert.deepEqual(H.quiet({ syncedAt: null, queue: [] }, { now }), []);
+});

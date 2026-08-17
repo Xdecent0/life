@@ -7,6 +7,8 @@
 import { html, raw, icon, esc, toast, wide } from "../../../core/dom.js";
 import { commit, touch } from "../../../core/state.js";
 import { cursor, hint } from "../../../core/keys.js";
+import { quiet } from "../../../core/health.js";
+import { isConfigured } from "../../../core/github.js";
 import * as M from "../lib/model.js";
 import { row, queue } from "./row.js";
 
@@ -156,6 +158,36 @@ function makeForm(state) {
   return "";
 }
 
+/**
+ * Снимок перестал приезжать — сказать это громко, а не подписью внизу.
+ *
+ * Экран без этой полосы выглядит нормально: проекты на месте, вехи на месте,
+ * просто всё это позавчерашнее. Молчание и порядок различаются только возрастом.
+ */
+function stalePane(state) {
+  const at = Date.parse(state.board?.собрано ?? "");
+
+  /* Про сам круг синка говорит пульт — там для этого есть и ключ, и кнопка.
+     Экрану доски принадлежат две другие тишины: снимок не приезжает и правка
+     не уезжает. Повторять третью значило бы дать один и тот же совет дважды. */
+  const rows = quiet(state, { keyed: isConfigured(), snapshotAt: Number.isFinite(at) ? at : null })
+    .filter((r) => r.key !== "sync");
+
+  if (!rows.length) return "";
+
+  /* Заголовок — про то, что случилось на самом деле: «показанное не
+     сегодняшнее» и «правки не уехали» — разные беды, и одна шапка на обе
+     заставляла бы дочитывать, чтобы понять, о чём речь. */
+  const said = rows.some((r) => r.key === "snapshot")
+    ? "Показанное — не сегодняшнее"
+    : "Правки не уехали";
+
+  return html`<section class="pane pane--alarm">
+    <div class="label">${said}</div>
+    ${raw(rows.map((r) => `<p class="prose">${esc(r.said)}. ${esc(r.fix)}</p>`).join(""))}
+  </section>`;
+}
+
 /** Заведённое ещё не в снимке: без этой полосы оно исчезает до следующего круга. */
 function comingPane(state) {
   const rows = M.creations(state);
@@ -211,6 +243,7 @@ export default {
         <button class="btn btn--ghost btn--sm" type="button" data-act="forget">Понятно</button>
       </section>` : "")}
 
+      ${raw(stalePane(s))}
       ${raw(cycleBar(s))}
       ${raw(filterBar(s))}
       ${raw(makeForm(s))}

@@ -21,6 +21,7 @@ declare({
 import { html, raw, icon, esc, toast, fmtDate, fmtTime } from "../core/dom.js";
 import { mountIcons } from "../core/icons.js";
 import { APPS, peek, urgentEverywhere, searchEverywhere, actOn } from "../core/registry.js";
+import { quiet } from "../core/health.js";
 import { syncApp } from "../core/sync.js";
 import { today, plural } from "../core/time.js";
 import * as gh from "../core/github.js";
@@ -68,6 +69,44 @@ function tile(entry) {
   return entry.href
     ? `<a class="hub-app" href="${esc(entry.href)}">${inner}</a>`
     : `<div class="hub-app" data-soon="1">${inner}</div>`;
+}
+
+/* ---------- тишина ---------- */
+
+/**
+ * Что молчит дольше положенного.
+ *
+ * Все поломки набора выглядят одинаково: экран показывает вчерашнее и молчит.
+ * Сервер доски не поднялся, ключ протух, мост не применил правку — ничего не
+ * падает, просто перестаёт происходить. Единственное место, где это видно
+ * разом по всем приложениям, — здесь.
+ */
+function quietPane() {
+  const keyed = gh.isConfigured();
+  const rows = [];
+
+  for (const entry of APPS) {
+    const seen = peek(entry);
+    if (!seen || seen.demo) continue;
+
+    const snapshotAt = Date.parse(seen.state?.board?.собрано ?? "");
+    rows.push(...quiet(seen.state, {
+      name: entry.name,
+      keyed,
+      snapshotAt: Number.isFinite(snapshotAt) ? snapshotAt : null,
+    }));
+  }
+
+  if (!rows.length) return "";
+
+  return html`<section class="hub-section">
+    <span class="hub-label">Тишина · ${rows.length}</span>
+    <div class="pane pane--alarm">
+      <div class="label">Перестало происходить</div>
+      ${raw(rows.map((r) => `<p class="prose">${esc(r.said)}<span class="quiet-fix"> · ${esc(r.fix)}</span></p>`).join(""))}
+      <p class="prose prose--muted">Это не ошибки — это то, чего не случилось. Такое видно только по возрасту: сколько дней назад оно в последний раз доезжало.</p>
+    </div>
+  </section>`;
 }
 
 /* ---------- красное ---------- */
@@ -341,6 +380,7 @@ function render() {
     </header>
 
     ${raw(searchPane())}
+    ${raw(query.trim().length >= 2 ? "" : quietPane())}
     ${raw(query.trim().length >= 2 ? "" : alertPane())}
     ${raw(query.trim().length >= 2 ? "" : todayPane())}
 
