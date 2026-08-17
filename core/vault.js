@@ -68,6 +68,36 @@ export function parseZones(markdown) {
     }));
 }
 
+/**
+ * The rooms of the flat — one list for the whole house.
+ *
+ * Уборка needs them to draw a floor plan; Вещи need them to say where the drill
+ * is kept. They used to be two separate tables in two folders, so the washing
+ * machine stood in a room Уборка knew about and Вещи had never heard of, and
+ * renaming a room in one place left the other saying the old name.
+ *
+ * The plan columns — row, column, width — are what makes a row a room of the
+ * flat rather than merely a place: «с собой» and «машина» are real answers to
+ * "where is it" and have no square on any floor plan. So Уборка draws the rows
+ * that have coordinates, and Вещи offer all of them.
+ */
+export function parseRooms(markdown) {
+  return parseTable(markdown)
+    .filter((r) => r["комната"])
+    .map((r) => ({
+      id: (r["ключ"] || r["комната"]).toLowerCase(),
+      name: r["комната"].toLowerCase(),
+      icon: r["значок"] || null,
+      into: r["куда кладу"] || `в ${r["комната"].toLowerCase()}`,
+      row: num(r["ряд"]),
+      col: num(r["колонка"]),
+      w: num(r["ширина"]) ?? 1,
+    }));
+}
+
+/** Only the rows that have a square on the plan. */
+export const onPlan = (rooms) => rooms.filter((r) => r.row != null && r.col != null);
+
 export function parseAisles(markdown) {
   return parseTable(markdown)
     .filter((r) => r["отдел"])

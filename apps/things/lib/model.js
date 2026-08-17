@@ -9,9 +9,14 @@ import { today, daysBetween, plural, freshness, expiryLabel as label, sortByUrge
 export { today, daysBetween, plural, freshness, sortByUrgency };
 
 /** Rooms and categories are vault tables; these are the starting rows. */
+/* Те же комнаты, что и у Уборки, — до первого чтения общего справочника
+   `Дом/Комнаты.md`. Ванная и туалет тоже места, где что-то лежит. */
 export const SEED_PLACES = [
   { name: "кухня", icon: "i-carton" },
   { name: "комната", icon: "i-shelf" },
+  { name: "ванная", icon: "i-veg" },
+  { name: "туалет", icon: "i-veg" },
+  { name: "коридор", icon: "i-store" },
   { name: "кладовка", icon: "i-stock" },
   { name: "балкон", icon: "i-veg" },
   { name: "с собой", icon: "i-store" },

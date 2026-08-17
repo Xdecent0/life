@@ -1,119 +1,58 @@
-// Offline support for the shopping list, without freezing the app on old code.
-//
-// Cache-first looks right for a store aisle with no signal, but it also means a
-// deployed fix may never reach the phone: the cache answers first, forever.
-// So the network wins whenever it answers, and the cache is the fallback —
-// which is exactly what "works in the store" actually requires.
+// What the kitchen is made of. The behaviour lives in core/sw.js.
 
-const CACHE = "kitchen-v25";
+importScripts("../../core/sw.js");
 
-const SHELL = [
-  "./",
-  "./index.html",
-  "../../design/app.css",
-  "./app.js",
-  "./manifest.webmanifest",
-  "./icons/icon.svg",
-  "./icons/icon-180.png",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "../../core/dom.js",
-  "../../core/log.js",
-  "../../core/install.js",
-  "../../core/money.js",
-  "../../core/qr.js",
-  "../../core/pair.js",
-  "../../core/state.js",
-  "./lib/store.js",
-  "./lib/model.js",
-  "./lib/trip.js",
-  "./lib/share.js",
-  "../../core/send.js",
-  "../../core/app.js",
-  "../../core/store.js",
-  "./manifest.js",
-  "../../core/icons.js",
-  "../../core/registry.js",
-  "./lib/recipes.js",
-  "./lib/planning.js",
-  "../../core/github.js",
-  "../../core/sync.js",
-  "../../core/shell.js",
-  "../../core/time.js",
-  "./lib/receipt.js",
-  "../../core/vault.js",
-  "./screens/list.js",
-  "./screens/stock.js",
-  "./screens/item.js",
-  "./screens/scan.js",
-  "./screens/audit.js",
-  "./screens/recipes.js",
-  "./screens/recipe.js",
-  "./screens/cook.js",
-  "./screens/menu.js",
-  "./screens/stores.js",
-  "./screens/tracking.js",
-  "./screens/receipts.js",
-  "./screens/settings.js",
-  "./screens/pair.js",
-];
-
-self.addEventListener("install", (e) => {
-  e.waitUntil(
-    caches
-      .open(CACHE)
-      // reload skips the HTTP cache, so a fresh install never seeds itself stale.
-      .then((c) => c.addAll(SHELL.map((url) => new Request(url, { cache: "reload" }))))
-      .then(() => self.skipWaiting())
-  );
-});
-
-self.addEventListener("activate", (e) => {
-  e.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("fetch", (e) => {
-  const { request } = e;
-  if (request.method !== "GET") return;
-
-  const url = new URL(request.url);
-  if (url.origin !== location.origin) return;
-
-  // A plain fetch() here still goes through the HTTP cache, and GitHub Pages
-  // serves max-age=600 — so the worker would happily hand back ten-minute-old
-  // code it never asked the server about. "no-cache" revalidates by ETag:
-  // a 304 when nothing changed, the new file the moment something did.
-  // navigator.onLine stays true on one bar, so "offline" never fires and each
-  // shell file hangs until the network gives up — a white screen at the shop
-  // door with a perfectly good copy already in the cache. Answer from the cache
-  // if the network has not spoken in a moment; the fetch still finishes and
-  // refreshes the cache for next time.
-  const network = fetch(new Request(request, { cache: "no-cache" }))
-    .then((res) => {
-        if (res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(request, copy));
-        }
-      return res;
-    });
-
-  network.catch(() => {});
-
-  e.respondWith(
-    Promise.race([
-      network,
-      new Promise((resolve) => setTimeout(resolve, 1500)).then(() =>
-        caches.match(request).then((hit) => hit ?? network)
-      ),
-    ]).catch(() => caches.match(request).then((hit) => hit ?? caches.match("./index.html")))
-  );
-});
-
-self.addEventListener("message", (e) => {
-  if (e.data === "skipWaiting") self.skipWaiting();
+life.serve({
+  key: "kitchen",
+  shell: [
+    "./",
+    "./index.html",
+    "./app.js",
+    "./manifest.js",
+    "./manifest.webmanifest",
+    "./icons/icon.svg",
+    "./icons/icon-180.png",
+    "./icons/icon-192.png",
+    "./icons/icon-512.png",
+    "./lib/store.js",
+    "./lib/model.js",
+    "./lib/trip.js",
+    "./lib/recipes.js",
+    "./lib/planning.js",
+    "./lib/receipt.js",
+    "./screens/list.js",
+    "./screens/stock.js",
+    "./screens/item.js",
+    "./screens/scan.js",
+    "./screens/audit.js",
+    "./screens/recipes.js",
+    "./screens/recipe.js",
+    "./screens/cook.js",
+    "./screens/menu.js",
+    "./screens/stores.js",
+    "./screens/tracking.js",
+    "./screens/receipts.js",
+    "./screens/settings.js",
+    "./screens/pair.js",
+    "../../design/app.css",
+    "../../design/kitchen.css",
+    "../../core/app.js",
+    "../../core/shell.js",
+    "../../core/dom.js",
+    "../../core/icons.js",
+    "../../core/state.js",
+    "../../core/store.js",
+    "../../core/sync.js",
+    "../../core/github.js",
+    "../../core/time.js",
+    "../../core/money.js",
+    "../../core/vault.js",
+    "../../core/log.js",
+    "../../core/qr.js",
+    "../../core/pair.js",
+    "../../core/send.js",
+    "../../core/install.js",
+    "../../core/registry.js",
+    "../../core/screens/settings.js",
+  ],
 });

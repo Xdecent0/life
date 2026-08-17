@@ -5,6 +5,7 @@
 // своей математики сроков — она в core/time.js.
 
 import { today, daysBetween, plural, freshness, sortByUrgency } from "../../../core/time.js";
+import { onPlan } from "../../../core/vault.js";
 
 export { today, daysBetween, plural, sortByUrgency };
 
@@ -52,6 +53,15 @@ export const SEED_SPOTS = [
 export const alive = (state) => (state.spots ?? []).filter((s) => !s.deleted);
 
 export const roomsOf = (state) => state.rooms ?? SEED_ROOMS;
+
+/**
+ * Комнаты, у которых есть квадрат на плане.
+ *
+ * Список комнат теперь один на весь дом и его же читают Вещи, а там есть
+ * ответы вроде «с собой» и «в машине» — настоящие ответы на «где оно», но
+ * рисовать их на плане квартиры нечем.
+ */
+export const planOf = (state) => onPlan(roomsOf(state));
 
 export const spotsIn = (state, roomId) => alive(state).filter((s) => s.room === roomId);
 

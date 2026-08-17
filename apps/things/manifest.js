@@ -23,7 +23,8 @@ export default declare({
   singles: [{ key: "rates", readOnly: true, accept: (data) => Boolean(data?.days) }],
 
   references: {
-    places: "Вещи/Справочники/Места.md",
+    /** One list for the whole house — Уборка read the same file. */
+    places: "Дом/Комнаты.md",
     kinds: "Вещи/Справочники/Виды.md",
   },
 });

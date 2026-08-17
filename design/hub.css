@@ -1,0 +1,118 @@
+/* Пульт — то, чего нет больше нигде.
+
+   Плитки приложений, ключ, пара, лента «сегодня».
+   Собирается tools/split_css.mjs по использованию: сюда попадает правило,
+   все классы которого не встречаются ни в одном другом приложении.
+   Грузится вместе с design/app.css, а не вместо него. */
+
+.hub {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 0 24px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.hub-head {
+  padding: 56px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 46ch;
+}
+
+.hub-head h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  line-height: 1.05;
+}
+
+.hub-head p {
+  margin: 0;
+  font-size: var(--t-lead);
+  color: var(--ink-3);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.hub-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hub-label {
+  font-size: var(--t-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.hub-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(228px, 1fr));
+  gap: 14px;
+}
+
+.hub-app {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  min-height: 152px;
+}
+
+.hub-app[data-soon="1"] {
+  background: none;
+  border-style: dashed;
+  color: var(--ink-4);
+}
+
+.hub-app-name {
+  font-size: var(--t-item);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.hub-app-what {
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  line-height: 1.45;
+  flex: 1;
+}
+
+.hub-app-state {
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.hub-panes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (min-width: 860px) {
+  .hub-panes {
+      grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a.hub-app:hover {
+      border-color: var(--line-firm);
+      background: var(--surface);
+    }
+}

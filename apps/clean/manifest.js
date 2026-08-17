@@ -16,7 +16,8 @@ export default declare({
   collections: ["spots", "rooms"],
 
   references: {
-    rooms: "Уборка/Справочники/Комнаты.md",
+    /** One list for the whole house — Вещи read the same file. */
+    rooms: "Дом/Комнаты.md",
     spots: "Уборка/Справочники/Поверхности.md",
   },
 });

@@ -1,0 +1,123 @@
+/* Уборка — то, чего нет больше нигде.
+
+   План дома: комнаты как квадраты, поверхности внутри.
+   Собирается tools/split_css.mjs по использованию: сюда попадает правило,
+   все классы которого не встречаются ни в одном другом приложении.
+   Грузится вместе с design/app.css, а не вместо него. */
+
+.plan {
+  display: grid;
+  grid-template-columns: repeat(var(--plan-cols, 4), minmax(0, 1fr));
+  gap: 10px;
+  padding: 6px var(--pad) 4px;
+  align-items: start;
+}
+
+.room {
+  min-width: 0;
+}
+
+.room {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.room-open {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 14px;
+  background: none;
+  border: 0;
+}
+
+.room[data-due="1"] {
+  border-color: rgba(193, 72, 31, 0.28);
+  background: var(--alarm-bg);
+}
+
+.room-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.room-name {
+  font-weight: 600;
+  font-size: var(--t-item);
+}
+
+.room-sum {
+  margin-left: auto;
+  font-size: var(--t-meta);
+  white-space: nowrap;
+}
+
+.meter--room {
+  width: 100%;
+  height: 5px;
+}
+
+.meter--room[data-tone="unknown"] {
+  background: repeating-linear-gradient(90deg, var(--line) 0 5px, transparent 5px 10px);
+}
+
+.room-spots {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.spot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  min-width: 0;
+}
+
+.spot-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.spot-name {
+  font-size: var(--t-body);
+}
+
+.spot-why {
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+}
+
+.duebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  padding: 2px var(--pad) 10px;
+}
+
+.plan-note {
+  padding: 10px var(--pad) 0;
+}
+
+@media (max-width: 700px) {
+  .plan {
+      grid-template-columns: 1fr;
+    }
+
+  .room {
+      grid-column: auto !important;
+      grid-row: auto !important;
+    }
+}

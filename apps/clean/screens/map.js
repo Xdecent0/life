@@ -99,8 +99,9 @@ export default {
 
     const now = M.today();
     const rooms = M.roomsOf(state);
+    const plan = M.planOf(state);
     const due = M.dueEverywhere(state, now);
-    const cols = Math.max(...rooms.map((r) => (r.col ?? 1) + (r.w ?? 1) - 1), 1);
+    const cols = Math.max(...plan.map((r) => (r.col ?? 1) + (r.w ?? 1) - 1), 1);
 
     const soon = due.slice(0, wide.matches ? 6 : 3);
 
@@ -124,7 +125,7 @@ export default {
 
         <div class="aisle">Карта дома</div>
         <div class="plan" style="--plan-cols: ${cols}">
-          ${raw(rooms.map((room) => roomTile(state, room, now)).join(""))}
+          ${raw(plan.map((room) => roomTile(state, room, now)).join(""))}
         </div>
 
         <p class="prose prose--muted plan-note">Нажми на комнату — раскроется, что в ней убирают. Галочка отмечает сделанное сегодня и сдвигает следующий раз.</p>
