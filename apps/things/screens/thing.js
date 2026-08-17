@@ -2,7 +2,8 @@
 // you would actually ask about them: где лежит, до какого числа гарантия, что
 // про неё записано.
 
-import { html, raw, icon, esc, cap, fmtMoney, toast, fmtAlso } from "../../../core/dom.js";
+import { html, raw, icon, esc, cap, fmtMoney, toast, fmtAlso, fmtDate } from "../../../core/dom.js";
+import { cardScreen } from "../../../core/screens/card.js";
 import { commit } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
 import * as M from "../lib/model.js";
@@ -25,10 +26,8 @@ export default {
 
     const warranty = M.warrantyLabel(thing);
     const running = M.warrantyRunningOut(thing);
-    const place = (state.places ?? []).find((p) => p.name === thing.place);
 
-    return html`<main class="screen">
-      <header class="head">
+    const head = html`<header class="head">
         <div class="head-row">
           <a class="icon-btn icon-btn--sm" href="#things" aria-label="Назад к вещам">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
           <span class="head-sub">${thing.place ? cap(thing.place) : "без места"}</span>
@@ -39,10 +38,9 @@ export default {
           <span class="chip">${M.kindOf(thing, state.kinds ?? []).name}</span>
           ${raw(thing.gone ? `<span class="chip">больше нет</span>` : "")}
         </div>
-      </header>
+      </header>`;
 
-      <div class="body">
-        <section class="pane">
+    const main = html`<section class="pane">
           <div class="label">Где лежит</div>
           <div class="chips">
             ${raw((state.places ?? []).map((p) => `<button class="chip" type="button" data-act="place" data-place="${esc(p.name)}" aria-pressed="${thing.place === p.name}">${raw(icon(p.icon ?? "i-shelf", { size: 15, stroke: "#1c3327" }))} ${esc(p.name)}</button>`).join(""))}
@@ -81,14 +79,20 @@ export default {
             <button class="btn btn--ghost btn--sm" type="submit">Сохранить</button>
           </form>
           ${raw(thing.price ? `<p class="prose prose--muted">${esc(fmtMoney(thing.price))} ${fmtAlso(thing.price, thing.boughtAt ?? Date.now())}</p>` : "")}
-        </section>
-      </div>
+        </section>`;
 
-      <div class="foot foot--wrap">
-        <button class="btn btn--grow" type="button" data-act="gone">${thing.gone ? "Вернулась" : "Больше нет"}</button>
-        <button class="btn btn--ghost btn--danger" type="button" data-act="remove">Удалить</button>
-      </div>
-    </main>`;
+    const foot = html`<div class="foot foot--wrap">
+      <button class="btn btn--grow" type="button" data-act="gone">${thing.gone ? "Вернулась" : "Больше нет"}</button>
+      <button class="btn btn--ghost btn--danger" type="button" data-act="remove">Удалить</button>
+    </div>`;
+
+    return cardScreen({
+      head,
+      main,
+      foot,
+      label: "Про эту вещь",
+      side: (cls) => sideOf(state, thing, cls),
+    });
   },
 
   actions: {
@@ -158,6 +162,44 @@ export default {
     },
   },
 };
+
+/**
+ * Колонка фактов: сводка, соседи по месту, родня по виду.
+ *
+ * Соседи — не украшение. «Где лежит дрель» почти всегда спрашивают вместе с
+ * «что там ещё лежит», а «такие же» отвечает на «сколько у меня этих кабелей»
+ * раньше, чем человек пойдёт считать их руками.
+ */
+function sideOf(state, thing, cls) {
+  const kind = M.kindOf(thing, state.kinds ?? []).name;
+  const near = M.alive(state).filter((t) => t.id !== thing.id && thing.place && t.place === thing.place);
+  const same = M.alive(state).filter((t) => t.id !== thing.id && M.kindOf(t, state.kinds ?? []).name === kind);
+
+  const rows = [
+    ["Место", thing.place ? cap(thing.place) : ""],
+    ["Вид", kind],
+    ["Куплено", thing.boughtAt ? fmtDate(thing.boughtAt) : ""],
+    ["Гарантия", M.warrantyLabel(thing) || ""],
+    ["Цена", thing.price ? fmtMoney(thing.price) : ""],
+    ["Серийник", thing.serial || ""],
+  ].filter(([, value]) => value);
+
+  const list = (items) => items.slice(0, 8).map((t) =>
+    `<a class="insp-row" href="#thing/${esc(t.id)}"><span>${esc(t.name)}</span><span class="tdim">${esc(t.place ? cap(t.place) : "без места")}</span></a>`).join("");
+
+  return html`<div class="${cls}">
+      <div class="label">Коротко</div>
+      ${raw(rows.map(([name, value]) => `<div class="insp-row"><span>${esc(name)}</span><span class="tdim">${esc(value)}</span></div>`).join(""))}
+    </div>
+    ${raw(near.length ? `<div class="${cls}">
+      <div class="head-row"><div class="label">Там же лежит</div><span class="tdim num">${near.length}</span></div>
+      ${list(near)}
+    </div>` : "")}
+    ${raw(same.length ? `<div class="${cls}">
+      <div class="head-row"><div class="label">Такие же</div><span class="tdim num">${same.length}</span></div>
+      ${list(same)}
+    </div>` : "")}`;
+}
 
 function patch(change) {
   commit("things.edit", (s) => {

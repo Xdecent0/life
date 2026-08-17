@@ -603,7 +603,8 @@ a {
    11px uppercase label in --ink-4 lands at 4.46:1 there — a hair under the bar.
    Small type gets the darker ink on this one surface. */
 
-.pane--calm .label {
+.pane--calm .label,
+.pane--calm .prose--muted {
   color: var(--ink-3);
 }
 
@@ -1339,6 +1340,13 @@ kbd {
   font-weight: 600;
 }
 
+/* Приглушённая строка, которой всё же есть что сказать: просроченный срок,
+   поверхность, которую ждали неделю назад. */
+
+.tdim--alarm {
+  color: var(--alarm-ink);
+}
+
 .tprice {
   text-align: right;
 }
@@ -1413,6 +1421,24 @@ kbd {
 
 .inspector .pane {
   margin: 16px 18px;
+}
+
+/* Колонка работы в карточке (core/screens/card.js) держит свою меру, а не
+   растягивается на весь остаток окна: список галочек шириной в тысячу пикселей
+   — это отметка на одном краю и дата на другом. */
+
+.workcol > *,
+.workcol .pane {
+  max-width: 780px;
+  margin-inline: auto;
+}
+
+/* Внизу колонки, а не приклеенным к низу экрана: на компьютере низа у экрана
+   нет — есть конец списка. */
+
+.workcol .foot {
+  border-top: 1px solid var(--line);
+  background: none;
 }
 
 /* ---------- share sheet ---------- */

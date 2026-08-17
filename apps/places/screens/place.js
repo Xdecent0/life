@@ -1,6 +1,7 @@
 // Одно место на телефоне: сколько раз был, как оно, звать ли обратно.
 
 import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { cardScreen } from "../../../core/screens/card.js";
 import { commit } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
 import * as M from "../lib/model.js";
@@ -23,8 +24,7 @@ export default {
     const now = M.today();
     const visits = M.visitsOf(place);
 
-    return html`<main class="screen">
-      <header class="head">
+    const head = html`<header class="head">
         <div class="head-row">
           <a class="icon-btn icon-btn--sm" href="#places" aria-label="Назад к местам">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
           <span class="head-sub">${M.kindOf(place, state.kinds ?? []).name}</span>
@@ -35,18 +35,9 @@ export default {
           ${raw(place.area ? `<span class="chip">${esc(place.area)}</span>` : "")}
           ${raw(M.callsBack(place, now) ? `<span class="chip chip--alarm">зовёт обратно</span>` : "")}
         </div>
-      </header>
+      </header>`;
 
-      <div class="body">
-        <section class="pane">
-          <div class="label">Ходил</div>
-          <p class="prose">${M.historyLabel(place, now)}${place.every ? ` · ${M.everyLabel(place)}` : ""}</p>
-          ${raw(visits.length > 1
-            ? `<p class="prose prose--muted">${visits.slice(-5).reverse().map((v) => new Date(v).toLocaleDateString("ru", { day: "numeric", month: "short", year: "2-digit" })).join(" · ")}</p>`
-            : "")}
-        </section>
-
-        <section class="pane">
+    const main = html`<section class="pane">
           <div class="label">Как оно</div>
           <div class="chips">
             ${raw(M.STARS.map((n) => `<button class="chip" type="button" data-act="rate" data-rating="${n}" aria-pressed="${place.rating === n}">${"★".repeat(n)}</button>`).join(""))}
@@ -74,15 +65,21 @@ export default {
             ${raw([7, 30, 90, 365].map((n) => `<button class="chip chip--sm" type="button" data-act="every" data-every="${n}" aria-pressed="${place.every === n}">${esc(M.everyLabel({ every: n }))}</button>`).join(""))}
           </div>
           <p class="prose prose--muted">Только тем, куда правда хочется возвращаться. Музей, в котором был однажды, не просрочен.</p>
-        </section>
-      </div>
+        </section>`;
 
-      <div class="foot foot--wrap">
-        <button class="btn btn--grow" type="button" data-act="went">Был сегодня</button>
-        ${raw(visits.length ? `<button class="btn btn--ghost" type="button" data-act="unwent">Убрать последний</button>` : "")}
-        <button class="btn btn--ghost btn--danger" type="button" data-act="remove">Удалить</button>
-      </div>
-    </main>`;
+    const foot = html`<div class="foot foot--wrap">
+      <button class="btn btn--grow" type="button" data-act="went">Был сегодня</button>
+      ${raw(visits.length ? `<button class="btn btn--ghost" type="button" data-act="unwent">Убрать последний</button>` : "")}
+      <button class="btn btn--ghost btn--danger" type="button" data-act="remove">Удалить</button>
+    </div>`;
+
+    return cardScreen({
+      head,
+      main,
+      foot,
+      label: "Про это место",
+      side: (cls) => sideOf(state, place, now, cls),
+    });
   },
 
   actions: {
@@ -158,6 +155,47 @@ export default {
     },
   },
 };
+
+/**
+ * Колонка справа: сколько раз был, и что ещё есть в этом районе.
+ *
+ * «Куда сходить» — вопрос про район, а не про одно заведение: список соседей
+ * рядом с карточкой отвечает на него сразу, вместо возврата к общему списку и
+ * фильтра по тому же слову.
+ */
+function sideOf(state, place, now, cls) {
+  const visits = M.visitsOf(place);
+  const kind = M.kindOf(place, state.kinds ?? []).name;
+
+  const near = M.alive(state).filter((p) => p.id !== place.id && place.area && p.area === place.area);
+  const same = M.alive(state).filter((p) => p.id !== place.id && M.kindOf(p, state.kinds ?? []).name === kind);
+
+  const rows = [
+    ["Был раз", visits.length || ""],
+    ["Последний", visits.length ? new Date(Math.max(...visits)).toLocaleDateString("ru", { day: "numeric", month: "short", year: "2-digit" }) : ""],
+    ["Ритм", place.every ? M.everyLabel(place) : ""],
+    ["Вид", kind],
+    ["Район", place.area || ""],
+  ].filter(([, value]) => value);
+
+  const list = (items) => items.slice(0, 8).map((p) =>
+    `<a class="insp-row" href="#place/${esc(p.id)}"><span>${esc(p.name)}</span><span class="tdim">${esc((p.visits ?? []).length ? "был" : "хочу")}</span></a>`).join("");
+
+  return html`<div class="${cls}">
+      <div class="label">Ходил</div>
+      <p class="prose">${M.historyLabel(place, now)}</p>
+      ${raw(rows.map(([name, value]) => `<div class="insp-row"><span>${esc(name)}</span><span class="tdim">${esc(String(value))}</span></div>`).join(""))}
+      ${raw(place.note ? `<p class="prose prose--muted">${esc(place.note)}</p>` : "")}
+    </div>
+    ${raw(near.length ? `<div class="${cls}">
+      <div class="head-row"><div class="label">Рядом, ${esc(place.area)}</div><span class="tdim num">${near.length}</span></div>
+      ${list(near)}
+    </div>` : "")}
+    ${raw(same.length ? `<div class="${cls}">
+      <div class="head-row"><div class="label">Такие же</div><span class="tdim num">${same.length}</span></div>
+      ${list(same)}
+    </div>` : "")}`;
+}
 
 function patch(change) {
   commit("places.edit", (s) => {

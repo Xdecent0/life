@@ -1,6 +1,7 @@
 // Дела: все разом, а не по одному проекту. Срок красит только просроченное.
 
 import { html, raw, esc, toast } from "../../../core/dom.js";
+import { touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { queue } from "./row.js";
 
@@ -45,6 +46,7 @@ export default {
   actions: {
     filter(el) {
       showDone = el.dataset.done === "1";
+      touch("дела.фильтр");
       toast(showDone ? "Показаны все" : "Только открытые");
     },
 

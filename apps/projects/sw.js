@@ -16,6 +16,8 @@ life.serve({
     "./screens/project.js",
     "./screens/deeds.js",
     "./screens/inbox.js",
+    "./screens/cycle.js",
+    "./screens/pulse.js",
     "./screens/archive.js",
     "./screens/settings.js",
     "../../design/app.css",
@@ -32,6 +34,7 @@ life.serve({
     "../../core/vault.js",
     "../../core/log.js",
     "../../core/registry.js",
+    "../../core/screens/card.js",
     "../../core/screens/settings.js",
   ],
 });

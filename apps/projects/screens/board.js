@@ -151,29 +151,6 @@ function makeForm(state) {
     </section>`;
   }
 
-  if (making === "итог") {
-    const c = M.cycleOf(state);
-
-    return html`<section class="pane">
-      <div class="head-row">
-        <div class="label">Итог цикла ${esc(c?.имя ?? "")}</div>
-        <button class="linkbtn" type="button" data-act="make" data-make="">Свернуть</button>
-      </div>
-      <form class="stack" data-act-submit="addSummary">
-        <label class="fieldset">
-          <span class="fieldset-label">Цель цикла</span>
-          <input class="field" name="цель" placeholder="чего хотели" autocomplete="off">
-        </label>
-        <label class="fieldset">
-          <span class="fieldset-label">Что вышло</span>
-          <textarea class="field field--area" name="текст" rows="4" placeholder="решения по каждому проекту: что закрыли, что режем, что переносим" required></textarea>
-        </label>
-        <button class="btn btn--ghost btn--sm" type="submit">Записать заметкой</button>
-        <p class="prose prose--muted">Ляжет заметкой в «10 - Проекты/Циклы» — там же, где итоги, записанные с компьютера.</p>
-      </form>
-    </section>`;
-  }
-
   return "";
 }
 
@@ -289,7 +266,7 @@ export default {
         <span class="toolbar-gap"></span>
         <span class="toolbar-hint"><kbd>/</kbd> искать</span>
         <button class="btn btn--ghost btn--sm" type="button" data-act="make" data-make="${making === "проект" ? "" : "проект"}">Новый проект</button>
-        ${raw(M.cycleOf(s) ? `<button class="btn btn--ghost btn--sm" type="button" data-act="make" data-make="${making === "итог" ? "" : "итог"}">Итог цикла</button>` : "")}
+        ${raw(M.cycleOf(s) ? `<a class="btn btn--ghost btn--sm" href="#cycle">Закрыть цикл</a>` : "")}
       </div>
 
       <div class="body">${raw(list)}</div>
@@ -336,18 +313,8 @@ export default {
 
       queue(M.change("проект+", { имя: name, ...fields }));
       making = "";
+      touch("доска.форма");
       toast(`«${name}» заведётся при синке`);
-    },
-
-    addSummary(form, s) {
-      const data = new FormData(form);
-      const text = String(data.get("текст") ?? "").trim();
-      const cycle = M.cycleOf(s)?.имя ?? "";
-      if (!text || !cycle) return;
-
-      queue(M.change("итог+", { цикл: cycle, цель: String(data.get("цель") ?? "").trim(), текст: text }));
-      making = "";
-      toast(`Итог ${cycle} уедет заметкой`);
     },
 
     /** Перенос идёт через заметку: правка на каждый проект, экран один раз. */

@@ -53,6 +53,7 @@ life.serve({
     "../../core/send.js",
     "../../core/install.js",
     "../../core/registry.js",
+    "../../core/screens/card.js",
     "../../core/screens/settings.js",
   ],
 });

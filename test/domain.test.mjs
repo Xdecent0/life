@@ -1393,3 +1393,39 @@ test("проекты: пустой снимок не роняет ни один 
   assert.deepEqual(PJ.activityOf({}), []);
   assert.deepEqual(PJ.creations(empty), []);
 });
+
+/* --------------------------------------------- проекты: ритуал цикла */
+
+test("проекты: итог собирается из решений, а не из памяти", () => {
+  const rows = BOARD.проекты;
+  const calls = new Map();
+
+  // Ни одного решения — в итоге честный список «до этого не дошли руки».
+  assert.match(PJ.cycleSummary(rows, calls), /Без решения/);
+
+  calls.set(rows[0].путь, "готово");
+  calls.set(rows[1].путь, "режем");
+
+  const text = PJ.cycleSummary(rows, calls);
+  assert.match(text, /Закрыт как сделанный[\s\S]*Альфа/);
+  assert.match(text, /Закрыт нерешённым[\s\S]*Бета/);
+  assert.doesNotMatch(text, /Без решения/, "решено по всем — раздела быть не должно");
+
+  // Мера прогресса в строке — та же, что на доске, а не пересказ.
+  assert.match(text, /1 из 3/);
+
+  calls.delete(rows[0].путь);
+  assert.match(PJ.cycleSummary(rows, calls), /Без решения[\s\S]*Альфа/);
+});
+
+test("проекты: у решения ритуала статус — словарь заметки, а не имя группы", () => {
+  const vault = ["идея", "активно", "пауза", "готово", "закрыт"];
+
+  for (const call of PJ.CALLS) {
+    if (call.status === null) continue;
+    assert.ok(vault.includes(call.status), `${call.key} → ${call.status}`);
+  }
+
+  // «Везём дальше» ничего не переносит: продолжать — это не событие.
+  assert.equal(PJ.CALLS.find((c) => c.key === "везём").status, null);
+});

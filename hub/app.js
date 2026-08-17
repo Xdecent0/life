@@ -70,6 +70,33 @@ function tile(entry) {
     : `<div class="hub-app" data-soon="1">${inner}</div>`;
 }
 
+/* ---------- красное ---------- */
+
+/**
+ * Алерты вотчдогов волта — на первом экране, а не в логах на компьютере.
+ *
+ * Снимок доски везёт их с самого начала: бэкап не прошёл, синк с Notion упал,
+ * место кончается. Пульт — единственное место, где такое видно с телефона, и
+ * прятать это ниже плиток значило бы узнавать о сломанном бэкапе через неделю.
+ */
+function alertPane() {
+  const seen = peek(APPS.find((a) => a.key === "projects"));
+  const rows = seen?.state?.board?.алерты ?? [];
+  if (!rows.length) return "";
+
+  const bad = rows.filter((a) => a.уровень !== "warn").length;
+
+  return html`<section class="hub-section">
+    <span class="hub-label">Волт · ${rows.length}</span>
+    <div class="pane ${bad ? "pane--alarm" : "pane--calm"}">
+      <div class="label">${bad ? "Не в порядке" : "Просит внимания"}</div>
+      ${raw(rows.slice(0, 6).map((a) => `<p class="prose">${esc(a.текст ?? "")}
+        <span class="tdim"> · ${esc(a.источник ?? "проверка")}</span></p>`).join(""))}
+      <p class="prose prose--muted">Меряют вотчдоги на компьютере; сюда это приезжает снимком доски вместе с проектами.</p>
+    </div>
+  </section>`;
+}
+
 /* ---------- сегодня ---------- */
 
 /**
@@ -303,6 +330,7 @@ function render() {
     </header>
 
     ${raw(searchPane())}
+    ${raw(query.trim().length >= 2 ? "" : alertPane())}
     ${raw(query.trim().length >= 2 ? "" : todayPane())}
 
     <section class="hub-section">

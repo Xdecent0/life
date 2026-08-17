@@ -18,6 +18,8 @@ import board from "./screens/board.js";
 import project from "./screens/project.js";
 import deeds from "./screens/deeds.js";
 import inbox from "./screens/inbox.js";
+import cycle from "./screens/cycle.js";
+import pulse from "./screens/pulse.js";
 import archive from "./screens/archive.js";
 import settings from "./screens/settings.js";
 
@@ -26,11 +28,13 @@ guardUnload();
 mountIcons();
 
 boot({
-  screens: { board, project, deeds, inbox, archive, settings },
+  screens: { board, project, deeds, inbox, cycle, pulse, archive, settings },
   nav: [
     { route: "board", label: "Доска", icon: "i-list" },
     { route: "deeds", label: "Дела", icon: "i-check" },
     { route: "inbox", label: "Входящее", icon: "i-inbox" },
+    { route: "cycle", label: "Цикл", icon: "i-track" },
+    { route: "pulse", label: "Обзор", icon: "i-chart" },
     { route: "archive", label: "Архив", icon: "i-stock" },
   ],
   home: "board",

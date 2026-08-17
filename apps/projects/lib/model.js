@@ -245,6 +245,44 @@ export function filter(rows, { space = "все", cycle = "все", query = "", c
   });
 }
 
+/* ---------- ритуал цикла ---------- */
+
+/**
+ * Решения закрытия цикла: слово в итог и статус в заметку из одного места.
+ *
+ * «Везём дальше» статуса не имеет намеренно: продолжать — это не событие, и
+ * трогать ради него шапку карточки значило бы записать в историю пустое.
+ */
+export const CALLS = [
+  { key: "везём", label: "везём дальше", said: "продолжаем", status: null },
+  { key: "готово", label: "готово", said: "закрыт как сделанный", status: "готово" },
+  { key: "пауза", label: "на паузу", said: "отложен", status: "пауза" },
+  { key: "режем", label: "режем", said: "закрыт нерешённым", status: "закрыт" },
+];
+
+/**
+ * Текст итога из решений — то же, что человек написал бы сам, но без «вспомни».
+ *
+ * Нерешённые проекты попадают в итог отдельным списком, а не выпадают из него:
+ * «до этого не дошли руки» — тоже результат цикла, и следующий цикл начнётся
+ * именно с них.
+ */
+export function cycleSummary(rows, calls) {
+  const parts = [];
+
+  for (const call of CALLS) {
+    const group = rows.filter((p) => calls.get(p.путь) === call.key);
+    if (!group.length) continue;
+    const head = call.said.charAt(0).toUpperCase() + call.said.slice(1);
+    parts.push(`## ${head}\n\n${group.map((p) => `- **${p.имя}** — ${progressOf(p).said}`).join("\n")}`);
+  }
+
+  const untouched = rows.filter((p) => !calls.has(p.путь));
+  if (untouched.length) parts.push(`## Без решения\n\n${untouched.map((p) => `- ${p.имя}`).join("\n")}`);
+
+  return parts.join("\n\n");
+}
+
 /* ---------- правки ---------- */
 
 export const alive = (rows = []) => rows.filter((r) => !r.deleted);

@@ -9,7 +9,9 @@
 // с самого начала — экран просто выбрасывал, и человеку приходилось открывать
 // Obsidian ради строчки из шапки.
 
-import { html, raw, icon, esc, toast, wide } from "../../../core/dom.js";
+import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { cardScreen } from "../../../core/screens/card.js";
+import { touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { queue } from "./row.js";
 
@@ -208,32 +210,15 @@ export default {
       ${raw(subPane(p))}
       <p class="prose prose--muted plan-note">Правка отсюда не меняет заметку сама: она уезжает записью, а применяет её компьютер — теми же операциями и теми же границами, что сервер доски. Пока волт не ответил, рядом написано «ждёт волта».</p>`;
 
-    const card = (cls) => html`${raw(progressBlock(p, cls))}
-      ${raw(factsBlock(p, cls))}
-      ${raw(waitBlock(p, cls))}
-      ${raw(moveBlock(p, cls))}`;
-
-    /* На телефоне это одна колонка сверху вниз: сначала чем меряется и что в
-       шапке, потом работа. На компьютере карточка уходит вправо и стоит на
-       месте, пока список вех скроллится — иначе половина окна пустует, а факты,
-       ради которых страницу открывают, уезжают вверх. */
-    if (!wide.matches) {
-      return html`<main class="screen">
-        ${raw(head)}
-        <div class="body">
-          ${raw(card("pane"))}
-          ${raw(work)}
-        </div>
-      </main>`;
-    }
-
-    return html`<main class="screen">
-      ${raw(head)}
-      <div class="split">
-        <div class="table workcol">${raw(work)}</div>
-        <aside class="inspector" aria-label="Карточка проекта">${raw(card("insp-block"))}</aside>
-      </div>
-    </main>`;
+    return cardScreen({
+      head,
+      main: work,
+      label: "Карточка проекта",
+      side: (cls) => html`${raw(progressBlock(p, cls))}
+        ${raw(factsBlock(p, cls))}
+        ${raw(waitBlock(p, cls))}
+        ${raw(moveBlock(p, cls))}`,
+    });
   },
 
   actions: {
@@ -247,7 +232,7 @@ export default {
       toast(`${p.имя} → ${status}`);
     },
 
-    edit() { editing = !editing; },
+    edit() { editing = !editing; touch("карточка.правка"); },
 
     /** Одна правка на изменившееся поле: неизменившееся не трогаем вовсе. */
     save(form, state) {
@@ -265,6 +250,7 @@ export default {
       }
 
       editing = false;
+      touch("карточка.сохранено");
       toast(sent ? `${sent} ${M.plural(sent, "поле уедет", "поля уедут", "полей уедут")} в заметку` : "Ничего не изменилось");
     },
 

@@ -2,6 +2,7 @@
 // правится — по нему считается всё остальное.
 
 import { html, raw, icon, esc, cap, toast } from "../../../core/dom.js";
+import { cardScreen } from "../../../core/screens/card.js";
 import { commit } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
 import * as M from "../lib/model.js";
@@ -28,21 +29,19 @@ export default {
     const st = M.stateOf(spot, now);
     const room = M.roomsOf(state).find((r) => r.id === spot.room);
 
-    return html`<main class="screen">
-      <header class="head">
-        <div class="head-row">
-          <a class="icon-btn icon-btn--sm" href="#map" aria-label="Назад к карте">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
-          <span class="head-sub">${room ? cap(room.name) : "без комнаты"}</span>
-        </div>
-        <h1>${spot.name}</h1>
-        <div class="chips">
-          <span class="chip ${st.tone === "calm" ? "" : "chip--alarm"}">${esc(st.key)}</span>
-          <span class="chip">${esc(M.everyLabel(spot))}</span>
-        </div>
-      </header>
+    const head = html`<header class="head">
+      <div class="head-row">
+        <a class="icon-btn icon-btn--sm" href="#map" aria-label="Назад к карте">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
+        <span class="head-sub">${room ? cap(room.name) : "без комнаты"}</span>
+      </div>
+      <h1>${spot.name}</h1>
+      <div class="chips">
+        <span class="chip ${st.tone === "calm" ? "" : "chip--alarm"}">${esc(st.key)}</span>
+        <span class="chip">${esc(M.everyLabel(spot))}</span>
+      </div>
+    </header>`;
 
-      <div class="body">
-        <section class="pane">
+    const main = html`<section class="pane">
           <div class="label">Когда убирали</div>
           <p class="prose">${M.lastLabel(spot, now)}${spot.lastDone && spot.every ? ` · следующий раз ${st.left >= 0 ? `через ${st.left} ${M.plural(st.left, "день", "дня", "дней")}` : `был ${Math.abs(st.left)} ${M.plural(Math.abs(st.left), "день", "дня", "дней")} назад`}` : ""}</p>
           <div class="rowbtns">
@@ -69,13 +68,19 @@ export default {
           <div class="chips">
             ${raw(M.roomsOf(state).map((r) => `<button class="chip chip--sm" type="button" data-act="room" data-room="${esc(r.id)}" aria-pressed="${spot.room === r.id}">${esc(r.name)}</button>`).join(""))}
           </div>
-        </section>
-      </div>
+        </section>`;
 
-      <div class="foot">
-        <button class="btn btn--ghost btn--danger btn--wide" type="button" data-act="remove">Удалить поверхность</button>
-      </div>
-    </main>`;
+    const foot = html`<div class="foot">
+      <button class="btn btn--ghost btn--danger btn--wide" type="button" data-act="remove">Удалить поверхность</button>
+    </div>`;
+
+    return cardScreen({
+      head,
+      main,
+      foot,
+      label: room ? `Комната: ${room.name}` : "Комната",
+      side: (cls) => sideOf(state, spot, room, now, cls),
+    });
   },
 
   actions: {
@@ -137,6 +142,38 @@ export default {
     },
   },
 };
+
+/**
+ * Комната целиком, рядом с одной её поверхностью.
+ *
+ * Убирают комнату, а не полку: если пол просрочен, а подоконник ждёт завтра,
+ * разумно сделать оба сразу. Отсюда же они и отмечаются — возвращаться к карте
+ * ради соседней строки не нужно.
+ */
+function sideOf(state, spot, room, now, cls) {
+  const mates = M.alive(state).filter((s) => s.id !== spot.id && s.room === spot.room);
+  const due = mates.filter((s) => M.isDue(s, now));
+
+  return html`<div class="${cls}">
+      <div class="label">Эта поверхность</div>
+      <div class="insp-row"><span>Убирали</span><span class="tdim">${M.lastLabel(spot, now)}</span></div>
+      <div class="insp-row"><span>Цикл</span><span class="tdim">${esc(M.everyLabel(spot))}</span></div>
+      ${raw(spot.note ? `<p class="prose prose--muted">${esc(spot.note)}</p>` : "")}
+    </div>
+    ${raw(mates.length ? `<div class="${cls}">
+      <div class="head-row">
+        <div class="label">${esc(room ? cap(room.name) : "Без комнаты")}</div>
+        <span class="tdim num">${due.length ? `${due.length} ждёт` : "всё свежее"}</span>
+      </div>
+      ${mates.map((s) => {
+        const st = M.stateOf(s, now);
+        return `<a class="insp-row" href="#spot/${esc(s.id)}">
+          <span>${esc(s.name)}</span>
+          <span class="tdim ${st.tone === "calm" ? "" : "tdim--alarm"}">${esc(st.key)}</span>
+        </a>`;
+      }).join("")}
+    </div>` : "")}`;
+}
 
 function patch(change) {
   commit("clean.edit", (s) => {

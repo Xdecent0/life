@@ -20,21 +20,6 @@
   max-width: 900px;
 }
 
-/* ---------- страница проекта ---------- */
-
-/* Работа слева, карточка справа, и колонка работы держит свою меру, а не
-   растягивается на весь остаток окна: список вех шириной в тысячу пикселей —
-   это галочка на одном краю и дата на другом. */
-.workcol > * {
-  max-width: 780px;
-  margin-inline: auto;
-}
-
-.workcol .pane {
-  margin-inline: auto;
-  max-width: 780px;
-}
-
 /* ---------- цикл ---------- */
 
 /* Полоска недель, а не проценты: цикл — это про «сколько ещё осталось», и
@@ -282,6 +267,150 @@
   white-space: nowrap;
 }
 
+/* ---------- ритуал цикла ---------- */
+
+/* Строка решения — та же строка проекта, но вместо счётчика четыре слова, из
+   которых выбирают одно. Решение остаётся видимым: отмеченная строка тонируется,
+   иначе на двадцатом проекте невозможно понять, где остановился. */
+.row--call {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+}
+
+.callbtns {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+@media (min-width: 900px) {
+  .row--call {
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas:
+        "name calls"
+        "meta calls";
+      align-items: center;
+      gap: 3px 14px;
+    }
+
+  .row--call .proj-name { grid-area: name; }
+  .row--call .proj-meta { grid-area: meta; }
+  .callbtns { grid-area: calls; flex-wrap: nowrap; }
+}
+
+/* Собранный итог показывается как текст, которым он уедет, а не пересказом:
+   человек должен видеть заметку до того, как она станет заметкой. */
+.summary {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--r-field);
+  background: var(--surface);
+  font: inherit;
+  font-size: var(--t-meta);
+  line-height: 1.5;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+/* ---------- обзор ---------- */
+
+.figs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  padding: 14px var(--pad) 0;
+  max-width: 900px;
+}
+
+.fig {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+}
+
+.fig-num {
+  font-size: var(--t-display);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.fig-said {
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+}
+
+.spark--tall { height: 56px; }
+.spark--tall i { height: calc(4px + var(--v, 0) * 52px); }
+
+/* Та же точка состояния, что в строке проекта: цвет здесь несёт смысл, а не
+   украшает, и подписан словом рядом. */
+.dotline {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.dotline::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: none;
+  background: var(--health, var(--ink-4));
+}
+
+.dotline[data-health="ok"]   { --health: #3f7d55; }
+.dotline[data-health="warn"] { --health: #b07d18; }
+.dotline[data-health="bad"]  { --health: var(--alarm); }
+.dotline[data-health="idle"] { --health: var(--ink-4); }
+.dotline[data-health="done"] { --health: var(--line-firm); }
+
+/* ---------- связи ---------- */
+
+.row--tree {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.twig {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 5px;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.twig-row {
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.twig-row::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 2px;
+  flex: none;
+  background: var(--health, var(--ink-5));
+}
+
+.twig-row[data-health="ok"]   { --health: #3f7d55; }
+.twig-row[data-health="warn"] { --health: #b07d18; }
+.twig-row[data-health="bad"]  { --health: var(--alarm); }
+.twig-row[data-health="done"] { --health: var(--line-firm); }
+
 /* ---------- выбор и массовые действия ---------- */
 
 .pickbox {
@@ -401,7 +530,6 @@
 .refused .prose--muted { opacity: 0.75; }
 .refused .btn { align-self: flex-start; }
 
-.tdim--alarm { color: var(--alarm-ink); }
 
 @media (hover: hover) and (pointer: fine) {
   .pickbox:hover { border-color: var(--accent-deep); }
