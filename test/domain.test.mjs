@@ -1889,3 +1889,25 @@ test("потери: окно не уходит за горизонт, на ко�
   assert.equal(r.days, W.KEEP_DAYS);
   assert.equal(r.clipped, true);
 });
+
+/* ------------------------------------------------------------- каналы */
+
+test("каналы: без проверки — не зелёное, и такие идут выше спокойных", () => {
+  const state = { board: { каналы: [
+    { имя: "GitHub", состояние: "ok", проверка: "git_push" },
+    { имя: "Discord", состояние: "не меряется", проверка: "" },
+    { имя: "Ollama", состояние: "error", проверка: "ollama" },
+    { имя: "Notion", состояние: "нет данных", проверка: "notion" },
+  ] } };
+
+  const rows = PJ.channelRows(state);
+  // Сначала сломанное, потом непонятное, потом неизмеряемое, и только в конце ок.
+  assert.deepEqual(rows.map((c) => c.имя), ["Ollama", "Notion", "Discord", "GitHub"]);
+  assert.deepEqual(rows.map((c) => c.tone), ["bad", "warn", "none", "ok"]);
+
+  // Канал без вотчдога не попадёт в алерты по построению: некому поднять руку.
+  assert.deepEqual(PJ.unwatched(state).map((c) => c.имя), ["Discord"]);
+
+  // Снимка нет — пустой список, а не падение.
+  assert.deepEqual(PJ.channelRows({}), []);
+});

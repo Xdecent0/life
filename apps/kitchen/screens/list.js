@@ -342,7 +342,7 @@ function railContext(state, plan, focusedRow) {
         <span>${loss.times} ${esc(M.plural(loss.times, "раз", "раза", "раз"))} за ${W.KEEP_DAYS} дней</span>
         ${loss.money != null ? `<span class="tdim num">${esc(fmtMoney(loss.money))}</span>` : ""}
       </div>
-      ${loss.verdict ? `<p class="loss-why">${esc(loss.verdict)}</p>` : ""}
+      ${loss.verdict ? `<p class="finding-why">${esc(loss.verdict)}</p>` : ""}
     </div>` : "")}
 
     ${raw(history.length ? `<div class="insp-block">

@@ -5,8 +5,9 @@
 // Только то, что снимок уже знает: недельная активность из коммитов волта,
 // раскладка по состояниям, дела по срокам и дерево «раздел → проект → подпроект».
 //
-// Две вкладки, а не два пункта меню: цифры и связи — это один вопрос, заданный
-// с разных сторон, и седьмой раздел в боковой панели он бы не окупил.
+// Вкладки, а не пункты меню: числа, связи внутри и связи наружу — это один
+// вопрос «как оно идёт», заданный с трёх сторон, и три раздела в боковой панели
+// он бы не окупил.
 
 import { html, raw, esc } from "../../../core/dom.js";
 import { touch } from "../../../core/state.js";
@@ -132,6 +133,61 @@ function tree(state) {
     <p class="prose prose--muted plan-note">Разделы объявлены в индексе папки «10 - Проекты», подпроекты — в самих карточках. Других связей доска не выдумывает.</p>`;
 }
 
+/* ---------- наружу ---------- */
+
+/**
+ * Каналы наружу: что подключено, чем меряется и живо ли.
+ *
+ * Реестр лежит в волте с самого начала и приезжает в снимке рядом с проектами —
+ * приложение не читало из него ни строчки. Красное про каналы уже говорит пульт
+ * (алерты вотчдогов), поэтому здесь не тревога, а инвентарь.
+ *
+ * Смысл в том, чего в алертах не будет никогда: канал без проверки не может
+ * поднять руку по построению. Он выглядит одинаково и когда работает, и когда
+ * умер полгода назад, — и потому стоит первым блоком, а не серым хвостом.
+ */
+function outward(state) {
+  const rows = M.channelRows(state);
+
+  if (!rows.length) {
+    return html`<div class="empty">
+      <h2>Реестр пуст</h2>
+      <p>Каналы наружу описаны в заметке «🔗 Каналы наружу» — снимок доски везёт их сюда вместе с проектами.</p>
+    </div>`;
+  }
+
+  const blind = rows.filter((c) => c.tone === "none");
+  const watched = rows.filter((c) => c.tone !== "none");
+
+  const line = (c) => html`<div class="finding">
+    <div class="finding-head">
+      <span class="dotline" data-health="${c.tone}">${c.имя}</span>
+      <span class="dim">${c.направление || "—"}${raw(c.дом ? ` · ${esc(c.дом)}` : "")}</span>
+    </div>
+    <p class="finding-why">${c.что || "без описания"}${raw(c.tone === "ok" ? "" : ` — ${esc(c.said)}`)}${raw(
+      c.подробно && c.tone !== "ok" ? `<span class="dim"> · ${esc(c.подробно)}</span>` : ""
+    )}</p>
+  </div>`;
+
+  return html`${raw(blind.length ? `<section class="pane">
+      <div class="head-row">
+        <div class="label">Никто не проверяет</div>
+        <span class="tdim num">${blind.length} из ${rows.length}</span>
+      </div>
+      ${blind.map(line).join("")}
+      <p class="prose prose--muted">У этих каналов нет вотчдога, поэтому в алертах их не будет никогда: некому поднять руку. Сломается — узнаешь, когда придёшь за результатом.</p>
+    </section>` : "")}
+
+    ${raw(watched.length ? `<section class="pane">
+      <div class="head-row">
+        <div class="label">Под присмотром</div>
+        <span class="tdim num">${watched.filter((c) => c.tone === "ok").length} из ${watched.length} в порядке</span>
+      </div>
+      ${watched.map(line).join("")}
+      <p class="prose prose--muted">Состояние меряют вотчдоги на компьютере — здесь оно такое, каким было в момент сборки снимка.</p>
+    </section>` : "")}`;
+}
+
 /* ---------- экран ---------- */
 
 export default {
@@ -153,6 +209,8 @@ export default {
 
     const body = view === "связи"
       ? tree(state)
+      : view === "наружу"
+      ? outward(state)
       : html`${raw(figures(state, rows))}
         ${raw(heat(rows))}
         ${raw(health(rows))}
@@ -169,7 +227,7 @@ export default {
       <div class="groupbar">
         <div class="seg seg--sm" role="group" aria-label="Что смотреть">
           <span class="seg-label">смотрим</span>
-          ${raw(["числа", "связи"].map((v) =>
+          ${raw(["числа", "связи", "наружу"].map((v) =>
             `<button class="seg-btn" type="button" data-act="view" data-view="${v}" aria-pressed="${view === v}">${v}</button>`).join(""))}
         </div>
       </div>

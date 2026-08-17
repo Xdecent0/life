@@ -504,6 +504,13 @@
 .dotline[data-health="idle"] { --health: var(--ink-4); }
 .dotline[data-health="done"] { --health: var(--line-firm); }
 
+/* Пустой квадратик — «мерить нечем». Залитый серый читался бы как «спокойно»,
+   а это ровно тот случай, когда спокойствие ничем не подтверждено. */
+.dotline[data-health="none"]::before {
+  background: none;
+  box-shadow: inset 0 0 0 1.5px var(--line-firm);
+}
+
 /* ---------- связи ---------- */
 
 .row--tree {

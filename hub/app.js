@@ -103,7 +103,7 @@ function quietPane() {
     <span class="hub-label">Тишина · ${rows.length}</span>
     <div class="pane pane--alarm">
       <div class="label">Перестало происходить</div>
-      ${raw(rows.map((r) => `<p class="prose">${esc(r.said)}<span class="quiet-fix"> · ${esc(r.fix)}</span></p>`).join(""))}
+      ${raw(rows.map((r) => `<p class="prose">${esc(r.said)}<span class="dim"> · ${esc(r.fix)}</span></p>`).join(""))}
       <p class="prose prose--muted">Это не ошибки — это то, чего не случилось. Такое видно только по возрасту: сколько дней назад оно в последний раз доезжало.</p>
     </div>
   </section>`;

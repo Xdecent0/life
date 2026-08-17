@@ -414,6 +414,47 @@ export function snapshotAge(state, now = Date.now()) {
   return Number.isFinite(at) ? Math.max(0, Math.floor((now - at) / DAY)) : null;
 }
 
+/* ---------- каналы наружу ---------- */
+
+/**
+ * Куда система ходит наружу — единственный список в снимке, который до сих пор
+ * никто не открывал.
+ *
+ * Реестр каналов лежит в волте с самого начала, снимок везёт его вместе с
+ * проектами, и приложение не читало из него ни строчки. Это не срочное — алерты
+ * и так кричат, когда проверка падает, — а инвентарь: что вообще подключено,
+ * чем это меряется и где оно живёт.
+ */
+export const channels = (state) => state.board?.каналы ?? [];
+
+/**
+ * Состояние канала в четыре тона.
+ *
+ * «Не меряется» — не зелёное. Канал без проверки не может попасть в алерты по
+ * построению: некому поднять руку. Такой канал молчит одинаково и когда всё
+ * хорошо, и когда он умер полгода назад, и потому здесь он отдельный тон, а не
+ * серая строчка в конце списка.
+ */
+export function channelState(c) {
+  const said = String(c?.состояние ?? "").toLowerCase();
+
+  if (["crit", "critical", "error"].includes(said)) return { tone: "bad", said: "не отвечает" };
+  if (said === "warn") return { tone: "warn", said: "просит внимания" };
+  if (["ok", "info"].includes(said)) return { tone: "ok", said: "в порядке" };
+  if (said.startsWith("нет данных")) return { tone: "warn", said: "проверка не отчиталась" };
+  return { tone: "none", said: "никто не проверяет" };
+}
+
+const CHANNEL_ORDER = { bad: 0, warn: 1, none: 2, ok: 3 };
+
+export const channelRows = (state) =>
+  channels(state)
+    .map((c) => ({ ...c, ...channelState(c) }))
+    .sort((a, b) => CHANNEL_ORDER[a.tone] - CHANNEL_ORDER[b.tone] || String(a.имя).localeCompare(String(b.имя), "ru"));
+
+/** Каналы, за которыми не следит никто, — та же тишина, только про интеграции. */
+export const unwatched = (state) => channelRows(state).filter((c) => c.tone === "none");
+
 export function plural(n, one, few, many) {
   const mod100 = Math.abs(n) % 100;
   const mod10 = mod100 % 10;

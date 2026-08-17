@@ -183,8 +183,8 @@ function lossBlock(state, now, cls = "insp-block") {
       : `${r.thrown} ${M.plural(r.thrown, "позиция", "позиции", "позиций")} за ${r.days} ${M.plural(r.days, "день", "дня", "дней")}`
     : "цены появятся, когда эти продукты попадут в отсканированный чек";
 
-  const rows = r.rows.slice(0, 5).map((row) => html`<div class="loss">
-    <div class="loss-head">
+  const rows = r.rows.slice(0, 5).map((row) => html`<div class="finding">
+    <div class="finding-head">
       <span>${row.product}${raw(row.times > 1 ? ` <span class="tdim num">· ${row.times} ${esc(M.plural(row.times, "раз", "раза", "раз"))}</span>` : "")}</span>
       <span class="tdim num">${raw(row.money != null
         ? esc(fmtMoney(row.money))
@@ -192,13 +192,13 @@ function lossBlock(state, now, cls = "insp-block") {
         // правую половину занимает то, что про эту запись точно известно.
         : esc(new Date(row.lastAt).toLocaleDateString("ru", { day: "numeric", month: "short" }).replace(/\.$/, "")))}</span>
     </div>
-    ${raw(row.verdict ? `<p class="loss-why">${esc(row.verdict)}</p>` : "")}
+    ${raw(row.verdict ? `<p class="finding-why">${esc(row.verdict)}</p>` : "")}
   </div>`).join("");
 
   return html`<div class="${cls}">
     <div class="label">Не доехало</div>
     <div class="insp-row"><span class="num">${head}</span>${raw(r.share ? `<span class="tdim num">${r.thrown} из ${r.closed} закрытых</span>` : "")}</div>
-    <p class="loss-why">${note}</p>
+    <p class="finding-why">${note}</p>
     ${raw(rows)}
   </div>`;
 }
