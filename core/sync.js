@@ -233,6 +233,107 @@ export function plan(manifest = app()) {
  */
 const settle = (entries, fold) => dropTombstones(fold ? fold(entries) : entries);
 
+/**
+ * Walk a plan against an explicit state. Knows no globals — which is what lets
+ * the hub run a round for an app it is not, straight out of that app's saved
+ * state, without four apps' worth of module state fighting in one page.
+ */
+async function walkPlan(steps, state, { onStep, report } = {}) {
+  const merged = {};
+
+  for (const step of steps) {
+    onStep?.(step.key);
+
+    if (step.kind === "read") {
+      // Read, never written: a scheduled Action owns the file, and a device
+      // writing its own copy back would fight the schedule every night.
+      const res = await gh.readJson(step.path, null).catch((err) => {
+        log.warn("синк", `${step.key}: файл не прочитан`, err?.message);
+        return { data: null };
+      });
+      merged[step.key] = res.data;
+      continue;
+    }
+
+    const written = await gh.writeJson(step.path, () => state[step.key], {
+      message: step.message,
+      merge: (remote) => {
+        if (step.kind === "single") return step.merge(state[step.key], remote ?? {}, merged);
+        const theirs = Array.isArray(remote) ? remote : [];
+        const result = settle(mergeById(state[step.key] ?? [], theirs), step.fold);
+        if (report && theirs.length !== result.length) report.pulled += 1;
+        return result;
+      },
+    });
+
+    merged[step.key] = written.data;
+    if (!report) continue;
+    if (written.skipped) report.skipped += 1;
+    else {
+      report.pushed += 1;
+      if (step.kind === "collection") report.collections.push(step.key);
+    }
+  }
+
+  return merged;
+}
+
+/** Fold what came back onto a state — the caller decides which state that is. */
+function foldPlan(steps, live, merged) {
+  const next = { ...live };
+
+  for (const step of steps) {
+    if (step.kind === "collection") {
+      next[step.key] = settle(mergeById(live[step.key] ?? [], merged[step.key] ?? []), step.fold);
+    } else if (step.kind === "single") {
+      next[step.key] = step.merge(live[step.key], merged[step.key] ?? {}, next);
+    } else if (step.accept ? step.accept(merged[step.key]) : merged[step.key] != null) {
+      next[step.key] = merged[step.key];
+    }
+  }
+
+  next.syncedAt = Date.now();
+  return next;
+}
+
+const blank = () => ({ pulled: 0, pushed: 0, skipped: 0, collections: [] });
+
+/**
+ * A round for an app that is not running, out of its own saved state.
+ *
+ * Four apps sharing one origin share one localStorage, so the hub can reach
+ * every app's state without loading it — and syncing all four used to mean
+ * opening all four and pressing the same button in each.
+ *
+ * Refuses an app that is showing demo data for the same reason the running app
+ * does: an invented cupboard must never reach a real repository.
+ */
+export async function syncApp(manifest, { onStep } = {}) {
+  const key = `${manifest.key}.state.v1`;
+  const raw = localStorage.getItem(key);
+  if (!raw) return { skipped: "не открывалось" };
+
+  const state = JSON.parse(raw);
+  if (state.demo) return { skipped: "демо-данные" };
+
+  const steps = plan(manifest);
+  if (!steps.length) return { skipped: "нечего синкать" };
+
+  const report = blank();
+  // Snapshot before the round: a queue drained by id cannot swallow an edit
+  // made while it was running.
+  const ids = new Set((state.queue ?? []).map((op) => op.id));
+  const merged = await walkPlan(steps, state, { onStep, report });
+
+  // Re-read: the app may have been open in another tab the whole time.
+  const live = JSON.parse(localStorage.getItem(key) ?? raw);
+  const next = foldPlan(steps, live, merged);
+  next.queue = (live.queue ?? []).filter((op) => !ids.has(op.id));
+
+  localStorage.setItem(key, JSON.stringify(next));
+  return report;
+}
+
 let running = null;
 let lastTry = 0;
 let lastLook = 0;
@@ -307,60 +408,14 @@ export async function sync({ onStep } = {}) {
     // in a shop, during which the person keeps ticking things off. Snapshot the
     // queue NOW, so edits made while it runs are not drained as if they synced.
     const ids = state.queue.map((op) => op.id);
-    const merged = {};
-    const report = { pulled: 0, pushed: 0, skipped: 0, collections: [] };
+    const report = blank();
 
     const steps = plan();
-
-    for (const step of steps) {
-      onStep?.(step.key);
-
-      if (step.kind === "read") {
-        // Read, never written: a scheduled Action owns the file, and a device
-        // writing its own copy back would fight the schedule every night.
-        const res = await gh.readJson(step.path, null).catch((err) => {
-          log.warn("синк", `${step.key}: файл не прочитан`, err?.message);
-          return { data: null };
-        });
-        merged[step.key] = res.data;
-        continue;
-      }
-
-      const written = await gh.writeJson(step.path, () => state[step.key], {
-        message: step.message,
-        merge: (remote) => {
-          if (step.kind === "single") return step.merge(state[step.key], remote ?? {}, merged);
-          const theirs = Array.isArray(remote) ? remote : [];
-          const result = settle(mergeById(state[step.key] ?? [], theirs), step.fold);
-          if (theirs.length !== result.length) report.pulled += 1;
-          return result;
-        },
-      });
-
-      merged[step.key] = written.data;
-      if (written.skipped) report.skipped += 1;
-      else {
-        report.pushed += 1;
-        if (step.kind === "collection") report.collections.push(step.key);
-      }
-    }
+    const merged = await walkPlan(steps, state, { onStep, report });
 
     // Fold the result onto whatever the state is NOW, not onto the snapshot:
     // the same per-entry merge picks up anything ticked while we were away.
-    const live = get();
-    const next = { ...live };
-    for (const step of steps) {
-      if (step.kind === "collection") {
-        next[step.key] = settle(mergeById(live[step.key] ?? [], merged[step.key] ?? []), step.fold);
-      } else if (step.kind === "single") {
-        next[step.key] = step.merge(live[step.key], merged[step.key] ?? {}, next);
-      } else if (step.accept ? step.accept(merged[step.key]) : merged[step.key] != null) {
-        next[step.key] = merged[step.key];
-      }
-    }
-    next.syncedAt = Date.now();
-
-    replace(next, "sync");
+    replace(foldPlan(steps, get(), merged), "sync");
     drainQueue(ids);
 
     stop({ отправлено: report.pushed, пропущено: report.skipped, подтянуто: report.pulled, очередь: ids.length });

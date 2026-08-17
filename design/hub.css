@@ -110,9 +110,128 @@
     }
 }
 
+/* ---------- поиск ---------- */
+
+.hub-search {
+  display: block;
+}
+
+.hub-search .field {
+  width: 100%;
+  font-size: var(--t-lead);
+}
+
+/* ---------- лента: «сегодня» и находки поиска ---------- */
+
+/* Одна лента, а не карточки по приложениям: молоко на сегодня и пол, не мытый
+   десять дней, — ответ на один и тот же вопрос, и группировка по приложению
+   утопила бы срочное под тем, что просто оказалось первым по алфавиту. */
+
+.feed {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.feed-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "mark name app"
+    ".    note note";
+  align-items: center;
+  gap: 2px 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.feed-row:last-child { border-bottom: 0; }
+
+.feed-mark {
+  grid-area: mark;
+  display: flex;
+  align-items: center;
+  color: var(--ink-4);
+}
+
+.feed-name {
+  grid-area: name;
+  font-size: var(--t-item);
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feed-note {
+  grid-area: note;
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.feed-app {
+  grid-area: app;
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+
+.feed-more {
+  padding: 12px 16px;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- журнал ---------- */
+
+.logfeed {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: var(--t-meta);
+}
+
+.logrow {
+  display: grid;
+  grid-template-columns: 44px 72px minmax(0, 1fr);
+  gap: 10px;
+  align-items: baseline;
+  font-variant-numeric: tabular-nums;
+}
+
+.logrow-when,
+.logrow-src { color: var(--ink-4); }
+
+.logrow-src {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logrow-msg { color: var(--ink-3); }
+
+/* Предупреждение и ошибка — не одно и то же, и различаются не только цветом:
+   ошибка ещё и жирнее, потому что цвет на журнальной строке в 12px — слабый
+   сигнал, а на печати или в дальтонизме его нет вовсе. */
+.logrow[data-level="w"] .logrow-msg { color: var(--ink-2); }
+
+.logrow[data-level="e"] .logrow-msg {
+  color: var(--alarm-ink);
+  font-weight: 500;
+}
+
 @media (hover: hover) and (pointer: fine) {
   a.hub-app:hover {
       border-color: var(--line-firm);
+      background: var(--surface);
+    }
+
+  a.feed-row:hover {
       background: var(--surface);
     }
 }
