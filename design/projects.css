@@ -1,0 +1,277 @@
+/* Проекты — то, чего нет больше нигде.
+
+   Строка проекта, полоса цикла, группы, вехи и дела чекбоксами, отбитые правки.
+   Собирается tools/split_css.mjs по использованию: сюда переносится правило,
+   все классы которого не встречаются ни в одном другом приложении.
+   Грузится вместе с design/app.css, а не вместо него. */
+
+/* ---------- цикл ---------- */
+
+/* Полоска недель, а не проценты: цикл — это про «сколько ещё осталось», и
+   двенадцать делений отвечают на это быстрее любого числа. */
+.cycbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 0 14px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 14px;
+  font-size: var(--t-meta);
+}
+
+.cycname {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wk {
+  display: flex;
+  gap: 3px;
+  width: 132px;
+  flex: none;
+}
+
+.wk s {
+  flex: 1;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--line);
+  text-decoration: none;
+}
+
+.wk s.on { background: var(--accent); }
+
+.cycfilter {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.chips--bar { padding-bottom: 12px; }
+
+/* ---------- поиск и порядок ---------- */
+
+.findrow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+}
+
+.findrow .field { flex: 1; min-width: 200px; }
+
+.seg--quiet { flex: none; }
+
+/* ---------- группы ---------- */
+
+.aisle--grp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.grp-empty {
+  padding: 4px 0 14px;
+  margin: 0;
+}
+
+/* ---------- строка проекта ---------- */
+
+.row--project {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "pick name  count"
+    ".    meta  meta"
+    ".    bar   bar";
+  align-items: center;
+  gap: 3px 12px;
+}
+
+/* Состояние несёт точка слева от имени, а не толстая полоса по краю карточки:
+   боковая планка — самый узнаваемый штамп сгенерированного интерфейса. */
+.proj-name {
+  grid-area: name;
+  font-size: var(--t-item);
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.proj-name::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: none;
+  background: var(--health, var(--ink-4));
+}
+
+.row--project[data-health="ok"]   { --health: #3f7d55; }
+.row--project[data-health="warn"] { --health: #b07d18; }
+.row--project[data-health="bad"]  { --health: var(--alarm); }
+.row--project[data-health="idle"] { --health: var(--ink-4); }
+.row--project[data-health="done"] { --health: var(--line-firm); }
+
+.proj-meta {
+  grid-area: meta;
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.cat {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 1px 8px;
+  color: var(--ink-4);
+}
+
+.proj-count {
+  grid-area: count;
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Полоса, а не кольцо: проценты сравнивают краем глаза, строку со строкой, и
+   дорожки одинаковой длины сравниваются, а кольца — нет. */
+.proj-bar {
+  grid-area: bar;
+  display: block;
+  height: 3px;
+  margin-top: 5px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.proj-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* ---------- выбор и массовые действия ---------- */
+
+.pickbox {
+  grid-area: pick;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-firm);
+  border-radius: 6px;
+  background: var(--raised);
+  color: transparent;
+  cursor: pointer;
+}
+
+.pickbox[aria-pressed="true"] {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: var(--accent-ink);
+}
+
+.row--picked { background: var(--surface); }
+
+.bulkbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line-firm);
+  border-radius: var(--r-card);
+  background: var(--surface);
+  font-size: var(--t-meta);
+}
+
+.bulkbar b { font-variant-numeric: tabular-nums; }
+.bulkbar .btn:last-child { margin-left: auto; }
+
+/* ---------- подсказки ---------- */
+
+.hints {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 2px 0 14px;
+}
+
+/* ---------- вехи и дела ---------- */
+
+.check {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer;
+}
+
+.check:last-of-type { border-bottom: 0; }
+
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent-deep);
+  margin: 0;
+  position: relative;
+  top: 3px;
+}
+
+.check-text {
+  font-size: var(--t-body);
+  line-height: 1.4;
+  text-wrap: pretty;
+}
+
+/* Сделанное не исчезает и не бледнеет до нечитаемости: это память о том, что
+   было. Оно просто перестаёт требовать внимания. */
+.check--done .check-text {
+  color: var(--ink-4);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-firm);
+}
+
+/* ---------- отбитые правки ---------- */
+
+.refused {
+  border: 1px solid var(--alarm);
+  border-radius: var(--r-card);
+  background: var(--alarm-bg);
+  color: var(--alarm-ink);
+  padding: var(--pad);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.refused .label { color: var(--alarm-ink); }
+.refused .prose { color: var(--alarm-ink); }
+.refused .prose--muted { opacity: 0.75; }
+.refused .btn { align-self: flex-start; }
+
+.tdim--alarm { color: var(--alarm-ink); }
+
+@media (hover: hover) and (pointer: fine) {
+  .pickbox:hover { border-color: var(--accent-deep); }
+}

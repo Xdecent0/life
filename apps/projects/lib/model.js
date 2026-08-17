@@ -1,33 +1,199 @@
-// Что происходит с правкой между телефоном и волтом.
+// Проекты: правила доски, слово в слово, и жизнь правки между телефоном и волтом.
 //
-// Экран у этого приложения не свой: это та же доска проектов, перенесённая из
-// волта файлом (см. tools/port_board.mjs). Здесь только то, чего у доски на
-// компьютере нет и быть не может — жизнь правки, которая уехала, но ещё не
-// доехала.
+// Ничего своего здесь не придумано. Статусы, разделы, пространства, циклы, виды
+// проектов, пороги подсказок — всё это уже решено доской и стандартом проекта;
+// повторить их иначе значило бы завести второй ответ на один вопрос.
 //
-// На компьютере доска правит заметку и перечитывает волт: увиденное всегда
-// равно тому, что лежит в файлах. С телефона волт недостижим, поэтому правка
-// ложится в очередь, а на экран накладывается поверх снимка — и рядом честно
-// написано, что она ещё в пути.
+// Что действительно принадлежит телефону — это очередь. На компьютере доска
+// правит заметку и перечитывает волт: увиденное всегда равно тому, что лежит в
+// файлах. Отсюда волт недостижим, поэтому правка ложится в очередь и рисуется
+// поверх снимка — с честной пометкой, что она ещё в пути.
 
 export const DAY = 86400000;
 
 /** Форма состояния, в котором ещё ничего не приезжало. */
 export const blank = () => ({ version: 1, board: null, edits: [], queue: [], syncedAt: null });
 
+/* ---------- словарь доски ---------- */
+
+/** Ровно те состояния, что бывают у карточки в волте. */
+export const GROUPS = ["беклог", "в работе", "на паузе"];
+export const ARCHIVED = ["готово", "закрыт"];
+
+/** Группа на доске ↔ статус в шапке заметки. Перенос всегда идёт через заметку. */
+export const TO_VAULT = {
+  "беклог": "идея",
+  "в работе": "активно",
+  "на паузе": "пауза",
+  "готово": "готово",
+  "закрыт": "закрыт",
+};
+
+export const NO_SECTION = "Без раздела";
+export const NO_AREA = "без категории";
+
+/** Здоровье волт считает сам по дате правки карточки — здесь только перевод. */
+const HEALTH = { "🟢": "ok", "🟡": "warn", "🔴": "bad", "⏸": "idle", "✅": "done" };
+export const healthOf = (p) => HEALTH[(p.здоровье ?? "").trim()] ?? "none";
+
+/** Порядок беспокойства: сначала то, что горит. */
+const RANK = { bad: 0, warn: 1, ok: 2, done: 3, idle: 4, none: 5 };
+
+/* ---------- чтение снимка ---------- */
+
+export const boardOf = (state) => state.board ?? null;
+export const cycleOf = (state) => state.board?.цикл ?? null;
+export const sectionsOf = (state) => state.board?.разделы ?? [];
+export const spacesOf = (state) => (state.board?.пространства ?? []).map((w) => w.имя);
+
+export const projects = (state) => withPending(state).проекты ?? [];
+
+export const live = (state) => projects(state).filter((p) => !ARCHIVED.includes(p.статус));
+export const archived = (state) => projects(state).filter((p) => ARCHIVED.includes(p.статус));
+
+export const find = (state, path) => projects(state).find((p) => p.путь === path) ?? null;
+
+export const groupOf = (p) =>
+  Object.entries(TO_VAULT).find(([, vault]) => vault === p.статус)?.[0] ?? p.статус;
+
+export const areaOf = (p) => (p.области ?? [])[0] || NO_AREA;
+
+export const milestonesOf = (p) => p.вехи ?? [];
+export const doneCount = (p) => milestonesOf(p).filter((m) => m.закрыта).length;
+
+/**
+ * Доля сделанного. У каждого вида своя мера: вехи считаются штуками, число —
+ * долей от цели, серия — днями. У «ожидания» процента нет вовсе: показать ноль
+ * значило бы соврать, будто ничего не делается.
+ */
+export function percent(p) {
+  if (p.вид === "число") return p.число?.цель ? clamp(100 * (p.число.текущее ?? 0) / p.число.цель) : 0;
+  if (p.вид === "серия") return p.серия?.цель ? clamp(100 * (p.серия.дни ?? []).length / p.серия.цель) : 0;
+  if (p.вид === "ожидание") return null;
+  const all = milestonesOf(p);
+  return all.length ? Math.round(100 * doneCount(p) / all.length) : (p.процент ?? 0);
+}
+
+const clamp = (v) => Math.min(100, Math.round(v));
+
+/* ---------- дела ---------- */
+
+export const deeds = (state) => withPending(state).дела ?? [];
+export const openDeeds = (state) => deeds(state).filter((d) => !d.сделано);
+
+/** Дела проекта: волт связывает их именем карточки, а не путём. */
+export const deedsOf = (state, p) => deeds(state).filter((d) => d.проект && p.имя.includes(d.проект));
+
+export function overdue(deed, now = today()) {
+  if (!deed.срок || deed.сделано) return false;
+  return Date.parse(deed.срок) <= now;
+}
+
+export function today(now = Date.now()) {
+  const d = new Date(now);
+  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/* ---------- подсказки ---------- */
+
+/* Те же две подсказки и те же пороги, что даёт доска: проект без движения
+   дольше трёх недель и проект, где осталась одна веха. */
+export const STALE_DAYS = 21;
+
+export const stalled = (state) =>
+  live(state).filter((p) => p.статус === "активно" && (p.дней_без_движения ?? 0) >= STALE_DAYS);
+
+export const almostDone = (state) =>
+  live(state).filter((p) => p.статус === "активно" && p.вехи_всего > 1 && p.вехи_всего - p.вехи_закрыто === 1);
+
+/* ---------- разрезы и порядок ---------- */
+
+export const CUTS = [
+  { key: "раздел", label: "Разделы" },
+  { key: "состояние", label: "Состояние" },
+  { key: "область", label: "Область" },
+];
+
+export const SORTS = [
+  { key: "состояние", label: "по беспокойству", of: (p) => RANK[healthOf(p)] ?? 9 },
+  { key: "имя", label: "по названию", of: (p) => String(p.имя).toLowerCase() },
+  { key: "процент", label: "по прогрессу", of: (p) => -(percent(p) ?? -1) },
+  { key: "стоит", label: "по простою", of: (p) => -(p.дней_без_движения ?? 0) },
+];
+
+export const sortBy = (rows, key) => {
+  const of = SORTS.find((s) => s.key === key)?.of ?? SORTS[0].of;
+  return [...rows].sort((a, b) => {
+    const x = of(a);
+    const y = of(b);
+    return x < y ? -1 : x > y ? 1 : String(a.имя).localeCompare(String(b.имя), "ru");
+  });
+};
+
+/**
+ * Группы доски. Раздел — своё слово из шапки карточки, и секция существует
+ * ровно пока в ней кто-то лежит; заводить её отдельно негде и незачем. Порядок
+ * берётся из индекса папки: алфавит не догадается, что «Главное сейчас» выше
+ * «Фона».
+ */
+export function groups(state, { cut = "раздел", sort = "состояние", rows = null } = {}) {
+  const pool = rows ?? live(state);
+  const buckets = new Map();
+
+  for (const p of pool) {
+    const name = cut === "раздел" ? (p.раздел || "").trim() || NO_SECTION
+      : cut === "область" ? areaOf(p)
+        : groupOf(p);
+    if (!buckets.has(name)) buckets.set(name, []);
+    buckets.get(name).push(p);
+  }
+
+  const declared = cut === "раздел" ? sectionsOf(state) : cut === "состояние" ? GROUPS : [];
+  const rank = (name) => {
+    const at = declared.indexOf(name);
+    if (at !== -1) return at;
+    return name === NO_SECTION || name === NO_AREA ? 998 : 500;
+  };
+
+  const out = [...buckets.entries()]
+    .map(([name, items]) => ({ name, items: sortBy(items, sort) }))
+    .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name, "ru"));
+
+  /* Состояние — единственный разрез с заранее известным списком групп, и пустую
+     из них показать честнее, чем спрятать: «в работе — пусто» это ответ. */
+  if (cut === "состояние") {
+    for (const name of GROUPS) if (!buckets.has(name)) out.push({ name, items: [] });
+    out.sort((a, b) => GROUPS.indexOf(a.name) - GROUPS.indexOf(b.name));
+  }
+
+  return out;
+}
+
+/** Фильтры, которые действуют разом на всё: пространство, цикл, поиск. */
+export function filter(rows, { space = "все", cycle = "все", query = "", cycleName = "" } = {}) {
+  const needle = query.trim().toLowerCase();
+
+  return rows.filter((p) => {
+    if (space !== "все" && (p.пространство || "Личное") !== space) return false;
+    if (cycle === "в цикле" && p.цикл !== cycleName) return false;
+    if (cycle === "вне" && p.цикл) return false;
+    if (!needle) return true;
+    return [p.имя, p.цель, p.аппетит, p.раздел, ...(p.области ?? [])]
+      .some((v) => String(v ?? "").toLowerCase().includes(needle));
+  });
+}
+
+/* ---------- правки ---------- */
+
 export const alive = (rows = []) => rows.filter((r) => !r.deleted);
-
-/** Правки, которых волт ещё не видел. */
 export const waiting = (state) => alive(state.edits).filter((e) => e.применено === null);
-
-/** Отбитые: строка разошлась, поле не то, файла нет. Их надо показать. */
 export const refused = (state) => alive(state.edits).filter((e) => e.применено === false);
 
 let counter = 0;
 
 /**
- * Новая правка. `что` — имя операции из белого списка доски, остальное — её
- * поля: мост отдаёт запись прямо в `board_server.OPS`, ничего не переводя.
+ * Новая правка. `что` — имя операции из белого списка доски, остальное её поля:
+ * мост отдаёт запись прямо в `board_server.OPS`, ничего не переводя.
  */
 export function change(kind, fields, now = Date.now()) {
   counter += 1;
@@ -37,65 +203,64 @@ export function change(kind, fields, now = Date.now()) {
 /**
  * Снимок с наложенными правками, которые ещё в пути.
  *
- * Доска рисует из того, что ей дали, и знать про очередь не должна — иначе
- * пришлось бы править перенесённый файл, а он должен оставаться тем же самым.
- * Поэтому очередь накладывается здесь, до того как снимок к ней попадёт.
+ * Наложение — копия: сам снимок остаётся тем, что приехало из волта, и когда
+ * придёт следующий, экран честно вернётся к нему.
  */
-export function withPending(board, edits = []) {
-  if (!board) return null;
+export function withPending(state) {
+  const board = state.board;
+  if (!board) return {};
+
+  const queue = waiting(state);
+  if (!queue.length) return board;
+
   const next = structuredClone(board);
 
-  for (const edit of edits) {
+  for (const edit of queue) {
     if (edit.что === "веха") {
-      const project = next.проекты?.find((p) => p.путь === edit.проект || p.ид === edit.проект);
-      const milestone = project?.вехи?.find((m) => m.строка === edit.строка);
-      if (milestone) milestone.закрыта = Boolean(edit.закрыта);
+      const p = next.проекты?.find((x) => x.путь === edit.проект);
+      const m = p?.вехи?.find((v) => v.строка === edit.строка);
+      if (m) {
+        m.закрыта = Boolean(edit.закрыта);
+        m.ждёт = true;
+      }
       continue;
     }
 
     if (edit.что === "дело") {
-      const deed = next.дела?.find((d) => d.ид === edit.ид);
-      if (deed && "сделано" in edit) deed.сделано = Boolean(edit.сделано);
+      const d = next.дела?.find((x) => x.ид === edit.ид);
+      if (d && "сделано" in edit) {
+        d.сделано = Boolean(edit.сделано);
+        d.ждёт = true;
+      }
       continue;
     }
 
     if (edit.что === "поле") {
-      const project = next.проекты?.find((p) => p.путь === edit.проект || p.ид === edit.проект);
-      if (project) project[edit.ключ] = edit.значение;
+      const p = next.проекты?.find((x) => x.путь === edit.проект);
+      if (p) {
+        p[edit.ключ] = edit.значение;
+        p.ждёт = true;
+      }
     }
 
-    /* Операции, которые заводят новое — проект, дело, пространство, — поверх
-       снимка не показываются: у них ещё нет ни строки, ни ид, которые придумает
-       волт. Они появятся следующим снимком, и интерфейс так и говорит. */
+    /* Операции, заводящие новое — проект, дело, веху, — поверх снимка не
+       рисуются: у них ещё нет ни строки, ни ид, которые придумает волт. */
+  }
+
+  // Счётчики пересчитываются здесь же: иначе строка покажет новую галочку и
+  // старое «3 из 11» одновременно.
+  for (const p of next.проекты ?? []) {
+    if (!p.вехи?.length) continue;
+    p.вехи_закрыто = p.вехи.filter((m) => m.закрыта).length;
+    p.вехи_всего = p.вехи.length;
   }
 
   return next;
 }
 
-/**
- * Что показывает метка волта в шапке.
- *
- * На компьютере там имя волта и «читается и пишется». Здесь волта нет — есть
- * репозиторий и очередь, и врать про это в единственном месте, которое доска
- * отвела под правду о связи, было бы худшим из вариантов.
- */
-export function vaultLabel(state) {
-  if (!state.board) return "снимок не приезжал";
-  const n = waiting(state).length;
-  const bad = refused(state).length;
-  if (bad) return `репозиторий · отбито: ${bad}`;
-  return n ? `репозиторий · ждут волта: ${n}` : "репозиторий";
-}
-
-/**
- * Дешёвый отпечаток — тем же способом, каким доска следит за волтом.
- *
- * Меняется, когда приехал новый снимок или встала в очередь правка, и доска
- * перерисовывается сама, без кнопки.
- */
-export function fingerprint(state) {
-  return `${state.board?.собрано ?? "-"}:${state.syncedAt ?? 0}:${waiting(state).length}:${refused(state).length}`;
-}
+/** Правки, которых волт ещё не видел, по этому проекту. */
+export const pendingFor = (state, p) =>
+  waiting(state).filter((e) => e.проект === p.путь).length;
 
 /**
  * Ответ приехал — запись отслужила. Через месяц она становится обычным
@@ -112,22 +277,17 @@ export function foldAnswered(entries, days = 30, now = Date.now()) {
   });
 }
 
-/**
- * Поиск по снимку — вместо поиска по всему волту, которого здесь нет.
- *
- * На компьютере доска спрашивает сервер и получает имена всех 2300 заметок.
- * С телефона доступны только проекты и дела из снимка; отвечать на «найдено»
- * тишиной было бы честнее всего, но бесполезно, а притворяться, что искали
- * везде, — нечестно. Поэтому ищем по тому, что есть.
- */
-export function findInSnapshot(board, query) {
-  const needle = String(query ?? "").trim().toLowerCase();
-  if (!board || needle.length < 2) return [];
+/** Как давно собран снимок — чтобы экран не притворялся живым. */
+export function snapshotAge(state, now = Date.now()) {
+  const at = Date.parse(state.board?.собрано ?? "");
+  return Number.isFinite(at) ? Math.max(0, Math.floor((now - at) / DAY)) : null;
+}
 
-  const hit = (v) => String(v ?? "").toLowerCase().includes(needle);
-
-  return (board.проекты ?? [])
-    .filter((p) => hit(p.имя) || hit(p.цель) || hit(p.аппетит))
-    .slice(0, 40)
-    .map((p) => ({ имя: p.имя, путь: p.путь, папка: (p.путь ?? "").split("/").slice(0, -1).join("/") }));
+export function plural(n, one, few, many) {
+  const mod100 = Math.abs(n) % 100;
+  const mod10 = mod100 % 10;
+  if (mod100 >= 11 && mod100 <= 14) return many;
+  if (mod10 === 1) return one;
+  if (mod10 >= 2 && mod10 <= 4) return few;
+  return many;
 }

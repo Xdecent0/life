@@ -1,7 +1,4 @@
 // What Проекты are made of. The behaviour lives in core/sw.js.
-//
-// Своих стилей и экранов у него нет: index.html — это доска проектов из волта,
-// перенесённая файлом, со стилями внутри себя.
 
 importScripts("../../core/sw.js");
 
@@ -14,12 +11,26 @@ life.serve({
     "./manifest.js",
     "./manifest.webmanifest",
     "./lib/model.js",
+    "./screens/board.js",
+    "./screens/row.js",
+    "./screens/project.js",
+    "./screens/deeds.js",
+    "./screens/archive.js",
+    "./screens/settings.js",
+    "../../design/app.css",
+    "../../design/projects.css",
     "../../core/app.js",
+    "../../core/shell.js",
+    "../../core/dom.js",
+    "../../core/icons.js",
     "../../core/state.js",
     "../../core/store.js",
     "../../core/sync.js",
     "../../core/github.js",
     "../../core/time.js",
+    "../../core/vault.js",
     "../../core/log.js",
+    "../../core/registry.js",
+    "../../core/screens/settings.js",
   ],
 });
