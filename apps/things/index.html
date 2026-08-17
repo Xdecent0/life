@@ -19,10 +19,13 @@
 
 <div class="app">
   <nav class="tabs" id="nav" aria-label="Разделы">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true">К</span>
+    <!-- The way back out. Every app is one of several now, so the name in the
+         corner is the door to the rest of them rather than decoration. -->
+    <a class="brand" href="../../hub/" title="Все приложения">
+      <span class="brand-mark" aria-hidden="true">В</span>
       <span class="brand-name">Вещи</span>
-    </div>
+      <span class="brand-switch" aria-hidden="true">все</span>
+    </a>
     <div class="tabs-scroll" data-tabs></div>
     <div class="tabs-foot">
       <button class="sync" type="button" data-sync-status hidden></button>

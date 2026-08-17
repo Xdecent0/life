@@ -3185,11 +3185,30 @@ kbd {
     color: #f0b3a0;
   }
 
+  /* The name in the corner is a door to the other apps, so it has to look like
+     one — quietly, until the pointer is on it. */
   .brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 0 10px 14px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    border-radius: 12px;
+    border: 1px solid transparent;
+  }
+
+  .brand-switch {
+    margin-left: auto;
+    font-size: var(--t-label);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--on-dark-3);
+    opacity: 0;
+    transition: opacity 0.12s ease;
+  }
+
+  .app[data-nav="mini"] .brand-switch {
+    display: none;
   }
 
   .brand-mark {
@@ -3462,8 +3481,17 @@ kbd {
     background: var(--surface);
   }
 
-  .tab:hover {
+  .tab:hover,
+  .brand:hover {
     background: rgba(244, 241, 230, 0.08);
+  }
+
+  .brand:hover {
+    border-color: rgba(244, 241, 230, 0.14);
+  }
+
+  .brand:hover .brand-switch {
+    opacity: 1;
   }
 
   .tab[aria-current="page"]:hover {

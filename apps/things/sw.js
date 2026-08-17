@@ -2,7 +2,7 @@
 // the same reason: a cache that answers first forever is how a deployed fix
 // never reaches the phone.
 
-const CACHE = "things-v1";
+const CACHE = "things-v2";
 
 const SHELL = [
   "./",
