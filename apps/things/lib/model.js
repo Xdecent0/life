@@ -60,6 +60,26 @@ export function warrantyLabel(thing, now = today()) {
   });
 }
 
+/**
+ * Гарантия, которая должна дёргать прямо сейчас.
+ *
+ * «Кончается через три недели» — не задача: посмотрел, решил, что вещь цела, и
+ * дальше оно напоминает ещё двадцать дней подряд. Такое напоминание учат
+ * игнорировать, и вместе с ним игнорируют настоящее.
+ *
+ * Поэтому «разобрался» гасит строку — но только до последней недели: там
+ * напомнить надо ещё раз, даже если человек уже смотрел. Это единственный
+ * момент, когда решение ещё можно принять, а завтра уже нет.
+ */
+export const WARRANTY_LAST = 7;
+
+export function warrantyNags(thing, now = today()) {
+  if (!warrantyRunningOut(thing, now)) return false;
+  const left = daysBetween(now, thing.warrantyUntil);
+  if (left <= WARRANTY_LAST) return true;
+  return !thing.warrantySeen;
+}
+
 /** Under a month left, and not already gone: the window where doing something still works. */
 export function warrantyRunningOut(thing, now = today()) {
   if (!thing.warrantyUntil) return false;

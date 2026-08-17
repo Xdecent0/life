@@ -6,6 +6,7 @@
 
 import { html, raw, icon, esc, toast, wide } from "../../../core/dom.js";
 import { commit, touch } from "../../../core/state.js";
+import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
 import { row, queue } from "./row.js";
 
@@ -16,6 +17,7 @@ let cycle = "все";
 let query = "";
 let picked = new Set();
 let making = "";
+const nav = cursor();
 
 export const state = () => ({ cut, sort, space, cycle, query });
 
@@ -196,6 +198,8 @@ export default {
     const c = M.cycleOf(s);
     const pool = M.filter(M.live(s), { space, cycle, query, cycleName: c?.имя ?? "" });
     const blocks = M.groups(s, { cut, sort, rows: pool });
+    const flat = blocks.flatMap((g) => g.items);
+    const at = nav.on(flat);
     const refused = M.refused(s);
     const age = M.snapshotAge(s);
 
@@ -218,7 +222,7 @@ export default {
           <span>${esc(g.name)}</span><span class="tdim num">${g.items.length}</span>
         </div>
         ${g.items.length
-          ? g.items.map((p) => row(s, p, { picked: picked.has(p.путь) })).join("")
+          ? g.items.map((p) => row(s, p, { picked: picked.has(p.путь), focused: flat[at]?.путь === p.путь })).join("")
           : `<p class="prose prose--muted grp-empty">пусто</p>`}`).join(""))}
 
       <p class="prose prose--muted plan-note">Окно в доску, а не вторая её копия: карточки живут заметками в волте. ${raw(age == null ? "Снимок не датирован." : age === 0 ? "Снимок собран сегодня." : `Снимку ${age} ${esc(M.plural(age, "день", "дня", "дней"))}.`)}</p>`;
@@ -264,7 +268,7 @@ export default {
             `<button class="seg-btn" type="button" data-act="sort" data-sort="${x.key}" aria-pressed="${sort === x.key}">${x.short}</button>`).join(""))}
         </div>
         <span class="toolbar-gap"></span>
-        <span class="toolbar-hint"><kbd>/</kbd> искать</span>
+        ${raw(hint([["↑↓", "ходить"], ["Space", "выбрать"], ["Enter", "открыть"], ["/", "искать"]]))}
         <button class="btn btn--ghost btn--sm" type="button" data-act="make" data-make="${making === "проект" ? "" : "проект"}">Новый проект</button>
         ${raw(M.cycleOf(s) ? `<a class="btn btn--ghost btn--sm" href="#cycle">Закрыть цикл</a>` : "")}
       </div>
@@ -275,10 +279,21 @@ export default {
 
   /* Та же клавиша, что в остальных четырёх: подсказка в панели должна работать,
      а не быть картинкой клавиши. */
-  keys(e) {
-    if (e.key !== "/" || /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) return;
-    e.preventDefault();
-    document.getElementById("proj-q")?.focus();
+  keys(e, s) {
+    const c = M.cycleOf(s);
+    const pool = M.filter(M.live(s), { space, cycle, query, cycleName: c?.имя ?? "" });
+    const flat = M.groups(s, { cut, sort, rows: pool }).flatMap((g) => g.items);
+
+    nav.keys(e, flat, {
+      redraw: () => touch("доска.курсор"),
+      open: (p) => { location.hash = `project/${encodeURIComponent(p.путь)}`; },
+      act: (p) => {
+        if (picked.has(p.путь)) picked.delete(p.путь);
+        else picked.add(p.путь);
+        touch("доска.выбор");
+      },
+      search: "#proj-q",
+    });
   },
 
   actions: {

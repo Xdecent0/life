@@ -5,15 +5,17 @@
 // когда вещь уже сломалась: что из моего ещё меняют, и сколько у меня на это
 // дней. Ради этого вопроса дату и записывают.
 
-import { html, raw, esc, cap, fmtMoney, fmtDate, toast } from "../../../core/dom.js";
-import { touch } from "../../../core/state.js";
+import { html, raw, esc, cap, fmtMoney, fmtDate, toast, wide } from "../../../core/dom.js";
+import { commit, touch } from "../../../core/state.js";
+import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
 
 let show = "всё";
+const nav = cursor();
 
 /* Строка гарантии — та же строка вещи, но справа не место, а срок: колонка,
    ради которой экран открыли, должна стоять в одном столбце сверху вниз. */
-function row(thing, now) {
+function row(thing, now, focused) {
   const left = thing.warrantyUntil ? M.daysBetween(now, thing.warrantyUntil) : null;
   const tone = left != null && left >= 0 && left <= M.WARRANTY_SOON;
 
@@ -23,11 +25,18 @@ function row(thing, now) {
       ? `кончилась ${fmtDate(thing.warrantyUntil)}`
       : `${left} ${M.plural(left, "день", "дня", "дней")} · до ${fmtDate(thing.warrantyUntil)}`;
 
-  return html`<a class="row row--twoline" href="#thing/${esc(thing.id)}">
-    <span class="row-name">${esc(thing.name)}</span>
-    <span class="row-why">${esc([cap(thing.place ?? ""), thing.serial ? `№ ${thing.serial}` : ""].filter(Boolean).join(" · "))}</span>
-    <span class="tdim ${tone ? "tdim--alarm" : ""}">${esc(said)}</span>
-  </a>`;
+  const nags = M.warrantyNags(thing, now);
+
+  return html`<div class="row row--twoline" data-focused="${focused ? 1 : 0}">
+    <a class="row-name" href="#thing/${esc(thing.id)}">${esc(thing.name)}</a>
+    <span class="row-why">${esc([cap(thing.place ?? ""), thing.serial ? `№ ${thing.serial}` : "", thing.warrantySeen && !nags ? "разобрался" : ""].filter(Boolean).join(" · "))}</span>
+    ${raw(tone
+      ? `<span class="rowend">
+          <span class="tdim tdim--alarm">${esc(said)}</span>
+          ${nags ? `<button class="btn btn--ghost btn--sm" type="button" data-act="seen" data-id="${esc(thing.id)}">Разобрался</button>` : ""}
+        </span>`
+      : `<span class="tdim">${esc(said)}</span>`)}
+  </div>`;
 }
 
 export default {
@@ -51,6 +60,8 @@ export default {
     const shown = show === "всё" ? groups : groups.filter((g) => g.key === show);
     const soon = groups.find((g) => g.key === "soon")?.rows.length ?? 0;
     const money = M.covered(M.alive(state), now);
+    const flat = shown.flatMap((g) => g.rows);
+    const at = nav.on(flat);
 
     return html`<main class="screen">
       <header class="head head--dark">
@@ -75,14 +86,33 @@ export default {
             <span>${esc(g.name)} · ${esc(g.note)}</span>
             <span class="tdim num">${g.rows.length}</span>
           </div>
-          ${g.rows.map((t) => row(t, now)).join("")}`).join(""))}
+          ${g.rows.map((t) => row(t, now, flat[at]?.id === t.id)).join("")}`).join(""))}
+
+        ${raw(wide.matches ? hint([["↑↓", "ходить"], ["Space", "разобрался"], ["Enter", "открыть"]]) : "")}
 
         <p class="prose prose--muted plan-note">Срок считается от даты в карточке вещи, а не от чека: чек может быть на месяц раньше, чем начали пользоваться. «Без гарантии» показывает только дорогое — у ложки её и не должно быть.</p>
       </div>
     </main>`;
   },
 
+  keys(e, state) {
+    const now = M.today();
+    const groups = M.warranties(M.alive(state), now);
+    const rows = (show === "всё" ? groups : groups.filter((g) => g.key === show)).flatMap((g) => g.rows);
+
+    nav.keys(e, rows, {
+      redraw: () => touch("гарантии.курсор"),
+      open: (t) => { location.hash = `thing/${t.id}`; },
+      act: (t) => seen(t),
+    });
+  },
+
   actions: {
+    seen(el, state) {
+      const thing = M.alive(state).find((t) => t.id === el.dataset.id);
+      if (thing) seen(thing);
+    },
+
     show(el) {
       show = el.dataset.show;
       touch("гарантии.разрез");
@@ -90,3 +120,26 @@ export default {
     },
   },
 };
+
+/**
+ * «Разобрался» — не «сделано».
+ *
+ * Вещь остаётся на гарантии; меняется только то, дёргает она или молчит. И
+ * молчит не навсегда: за неделю до конца напомнит ещё раз, потому что это
+ * последний момент, когда решение вообще можно принять.
+ */
+function seen(thing) {
+  if (!M.warrantyNags(thing)) return;
+
+  const was = thing.warrantySeen ?? null;
+  const put = (value) => commit("things.warrantySeen", (s) => {
+    const target = s.things.find((t) => t.id === thing.id);
+    if (!target) return null;
+    target.warrantySeen = value;
+    target.at = Date.now();
+    return { kind: "things", id: target.id };
+  });
+
+  put(M.today());
+  toast(`${thing.name} — напомню за неделю до конца`, "calm", { undo: () => put(was) });
+}

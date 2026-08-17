@@ -105,16 +105,32 @@ export const APPS = [
     },
 
     /* A month, not three days: a guarantee that ends tomorrow is already too
-       late to do anything about, which is the opposite of milk. */
+       late to do anything about, which is the opposite of milk.
+
+       Отмеченное «разобрался» молчит до последней недели: гарантия — не задача,
+       которую закрывают галочкой, а срок, про который достаточно решить один
+       раз. Напоминание, повторяющееся двадцать дней подряд, учат не замечать. */
     urgent: (state, now) =>
       alive(state.things)
         .filter((t) => !t.gone && dueBy(t.warrantyUntil, now, 30))
+        .filter((t) => !t.warrantySeen || daysBetween(now, t.warrantyUntil) <= 7)
         .map((t) => ({
           left: daysBetween(now, t.warrantyUntil),
           name: t.name,
           note: `гарантия · ${expiryLabel({ expires: t.warrantyUntil }, now, { gone: "кончилась", zero: "сегодня последний день", one: "до завтра", long: true })}`,
           href: `#thing/${t.id}`,
+          act: { label: "Разобрался", kind: "warranty", id: t.id },
         })),
+
+    /* Не «сделано», а «увидел и решил»: вещь остаётся на гарантии, меняется
+       только то, дёргает она или молчит. */
+    apply: (state, act) => {
+      const thing = (state.things ?? []).find((t) => t.id === act.id);
+      if (!thing || thing.warrantySeen) return null;
+      thing.warrantySeen = today();
+      thing.at = Date.now();
+      return { kind: "things", id: thing.id };
+    },
 
     search: (state, hit) =>
       alive(state.things)

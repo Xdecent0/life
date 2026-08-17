@@ -36,6 +36,6 @@ boot({
   home: "things",
   /* Значок висит там, где по нему и пойдут: кончающаяся гарантия — повод
      открыть гарантии, а не общий список. */
-  badge: (route, state) => (route === "warranty" ? M.alive(state).filter((t) => M.warrantyRunningOut(t)).length : 0),
+  badge: (route, state) => (route === "warranty" ? M.alive(state).filter((t) => M.warrantyNags(t)).length : 0),
   afterRender: applyCurrency,
 });

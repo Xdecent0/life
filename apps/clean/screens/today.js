@@ -9,14 +9,18 @@
 // тряпка уже в руке, и метаться из кухни в ванную ради двух просроченных
 // поверхностей никто не станет.
 
-import { html, raw, esc, cap, toast } from "../../../core/dom.js";
-import { commit } from "../../../core/state.js";
+import { html, raw, esc, cap, toast, wide } from "../../../core/dom.js";
+import { commit, touch } from "../../../core/state.js";
+import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
 
-function row(spot, now) {
+/* Курсор живёт между перерисовками: это состояние взгляда, а не данные. */
+const nav = cursor();
+
+function row(spot, now, focused) {
   const st = M.stateOf(spot, now);
 
-  return html`<div class="row row--twoline">
+  return html`<div class="row row--twoline" data-focused="${focused ? 1 : 0}">
     <a class="row-name" href="#spot/${esc(spot.id)}">${esc(spot.name)}</a>
     <span class="row-why">${esc([st.key, M.lastLabel(spot, now), `${M.minutesOf(spot)} мин`].join(" · "))}</span>
     <button class="btn btn--ghost btn--sm" type="button" data-act="done" data-id="${esc(spot.id)}">Убрал</button>
@@ -29,6 +33,8 @@ export default {
   render(state) {
     const now = M.today();
     const { groups, minutes, count } = M.plan(state, now);
+    const flat = groups.flatMap((g) => g.rows);
+    const at = nav.on(flat);
 
     if (!count) {
       const known = M.alive(state).length;
@@ -58,30 +64,44 @@ export default {
             <span>${esc(cap(g.name))}</span>
             <span class="tdim num">${g.rows.length} · ${esc(M.saidMinutes(g.minutes))}</span>
           </div>
-          ${g.rows.map((s) => row(s, now)).join("")}`).join(""))}
+          ${g.rows.map((s) => row(s, now, flat[at]?.id === s.id)).join("")}`).join(""))}
+
+        ${raw(wide.matches ? hint([["↑↓", "ходить"], ["Space", "убрал"], ["Enter", "открыть"]]) : "")}
 
         <p class="prose prose--muted plan-note">Время прикидочное: считается от цикла, потому что другого признака «сколько работы» в данных нет. Раковину протирают, окно моют долго — этого хватает, чтобы понять, влезет ли уборка в вечер.</p>
       </div>
     </main>`;
   },
 
+  keys(e, state) {
+    const flat = M.plan(state).groups.flatMap((g) => g.rows);
+    nav.keys(e, flat, {
+      redraw: () => touch("сегодня.курсор"),
+      open: (spot) => { location.hash = `spot/${spot.id}`; },
+      act: (spot) => done(spot),
+    });
+  },
+
   actions: {
     /** Та же отметка, что на карте и в карточке: одна запись на три экрана. */
     done(el, state) {
       const spot = M.alive(state).find((s) => s.id === el.dataset.id);
-      if (!spot) return;
-
-      const was = spot.lastDone;
-      const put = (value) => commit("clean.done", (s) => {
-        const target = s.spots.find((x) => x.id === el.dataset.id);
-        if (!target) return null;
-        target.lastDone = value;
-        target.at = Date.now();
-        return { kind: "spots", id: target.id };
-      });
-
-      put(M.today());
-      toast(`${spot.name} — убрано`, "calm", { undo: () => put(was) });
+      if (spot) done(spot);
     },
   },
 };
+
+/** Отметка одна на кнопку и на пробел — иначе они разойдутся первой же правкой. */
+function done(spot) {
+  const was = spot.lastDone;
+  const put = (value) => commit("clean.done", (s) => {
+    const target = s.spots.find((x) => x.id === spot.id);
+    if (!target) return null;
+    target.lastDone = value;
+    target.at = Date.now();
+    return { kind: "spots", id: target.id };
+  });
+
+  put(M.today());
+  toast(`${spot.name} — убрано`, "calm", { undo: () => put(was) });
+}

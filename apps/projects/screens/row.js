@@ -11,7 +11,7 @@ import * as M from "../lib/model.js";
  * дорожки одинаковой длины сравниваются, а кольца — нет. У «ожидания» полосы
  * нет вовсе: показать ноль значило бы соврать, будто ничего не делается.
  */
-export function row(state, p, { picked = false } = {}) {
+export function row(state, p, { picked = false, focused = false } = {}) {
   const pc = M.percent(p);
   const done = M.doneCount(p);
   const all = M.milestonesOf(p).length;
@@ -23,7 +23,7 @@ export function row(state, p, { picked = false } = {}) {
     (p.дней_без_движения ?? 0) >= M.STALE_DAYS ? `стоит ${p.дней_без_движения} дн.` : null,
   ].filter(Boolean);
 
-  return html`<div class="row row--project ${picked ? "row--picked" : ""}" data-health="${M.healthOf(p)}">
+  return html`<div class="row row--project ${picked ? "row--picked" : ""}" data-health="${M.healthOf(p)}" data-focused="${focused ? 1 : 0}">
     <button class="pickbox" type="button" data-act="pick" data-path="${esc(p.путь)}"
             aria-pressed="${picked}" aria-label="Выбрать ${esc(p.имя)}">${raw(icon("i-check", { size: 12 }))}</button>
 

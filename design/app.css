@@ -814,7 +814,8 @@ a {
 .row--twoline .row-why { grid-area: meta; }
 
 .row--twoline > .tdim,
-.row--twoline > .btn { grid-area: right; }
+.row--twoline > .btn,
+.row--twoline > .rowend { grid-area: right; }
 
 /* ---------- chips, extra ---------- */
 
@@ -2223,4 +2224,31 @@ kbd {
 .hub .pane--calm {
   background: var(--surface);
   border-color: transparent;
+}
+
+/* Срок и кнопка рядом в правой колонке строки: «когда» и «что с этим делать» —
+   один ответ, и разносить их по разным краям значило бы читать строку дважды. */
+
+.rowend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+/* Строка под курсором клавиатуры. Тот же приём, что у таблицы склада: тонкая
+   планка слева, а не заливка — заливка спорит с выбранной строкой. */
+
+.row[data-focused="1"] {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--ink);
+}
+
+/* Дело под курсором. Строка дела — это label с галочкой, у неё нет своей
+   подложки, поэтому планка слева ставится тем же приёмом, что у строк. */
+
+.check[data-focused="1"] {
+  box-shadow: inset 2px 0 0 var(--ink);
+  padding-left: 8px;
+  margin-left: -8px;
 }

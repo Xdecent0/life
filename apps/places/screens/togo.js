@@ -7,16 +7,18 @@
 // Фильтр по району здесь не украшение: «куда сходить» почти всегда означает
 // «куда доеду», и первый вопрос к списку — в какой он части города.
 
-import { html, raw, esc, icon, toast } from "../../../core/dom.js";
+import { html, raw, esc, icon, toast, wide } from "../../../core/dom.js";
 import { commit, touch } from "../../../core/state.js";
+import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
 
 let area = "везде";
+const nav = cursor();
 
-function row(place, now) {
+function row(place, now, focused) {
   const stars = place.rating ? "★".repeat(place.rating) : "";
 
-  return html`<div class="row row--twoline">
+  return html`<div class="row row--twoline" data-focused="${focused ? 1 : 0}">
     <a class="row-name" href="#place/${esc(place.id)}">${esc(place.name)}</a>
     <span class="row-why">
       ${raw([place.area, place.kind, stars, M.historyLabel(place, now)]
@@ -48,6 +50,8 @@ export default {
     const keep = (rows) => (area === "везде" ? rows : rows.filter((p) => (p.area ?? "") === area));
     const shown = groups.map((g) => ({ ...g, rows: keep(g.rows) })).filter((g) => g.rows.length);
     const total = shown.reduce((n, g) => n + g.rows.length, 0);
+    const flat = shown.flatMap((g) => g.rows);
+    const at = nav.on(flat);
 
     return html`<main class="screen">
       <header class="head head--dark">
@@ -68,12 +72,25 @@ export default {
             <span>${esc(g.name)} · ${esc(g.note)}</span>
             <span class="tdim num">${g.rows.length}</span>
           </div>
-          ${g.rows.map((p) => row(p, now)).join("")}`).join("")
+          ${g.rows.map((p) => row(p, now, flat[at]?.id === p.id)).join("")}`).join("")
           : `<p class="prose prose--muted plan-note">В районе «${esc(area)}» сейчас ничего не зовёт. Это не пустой экран, а ответ: значит, сегодня туда не надо.</p>`)}
+
+        ${raw(wide.matches ? hint([["↑↓", "ходить"], ["Space", "был"], ["Enter", "открыть"]]) : "")}
 
         <p class="prose prose--muted plan-note">«Был» отмечается прямо отсюда — идти в карточку ради одной галочки не нужно. Ритм ставится в карточке места и только там, где возвращаться правда хочется.</p>
       </div>
     </main>`;
+  },
+
+  keys(e, state) {
+    const rows = M.toGo(state).flatMap((g) => g.rows)
+      .filter((p) => area === "везде" || (p.area ?? "") === area);
+
+    nav.keys(e, rows, {
+      redraw: () => touch("куда.курсор"),
+      open: (p) => { location.hash = `place/${p.id}`; },
+      act: (p) => went(p),
+    });
   },
 
   actions: {
@@ -82,19 +99,22 @@ export default {
     /** Та же отметка, что в списке и в карточке: одна запись на все три экрана. */
     went(el, state) {
       const place = M.alive(state).find((p) => p.id === el.dataset.id);
-      if (!place) return;
-
-      const before = [...(place.visits ?? [])];
-      const put = (visits) => commit("places.went", (s) => {
-        const target = s.places.find((p) => p.id === el.dataset.id);
-        if (!target) return null;
-        target.visits = visits;
-        target.at = Date.now();
-        return { kind: "places", id: target.id };
-      });
-
-      put([...before, M.today()]);
-      toast(`${place.name} — отмечено`, "calm", { undo: () => put(before) });
+      if (place) went(place);
     },
   },
 };
+
+/** Одна отметка на кнопку и на пробел. */
+function went(place) {
+  const before = [...(place.visits ?? [])];
+  const put = (visits) => commit("places.went", (s) => {
+    const target = s.places.find((p) => p.id === place.id);
+    if (!target) return null;
+    target.visits = visits;
+    target.at = Date.now();
+    return { kind: "places", id: target.id };
+  });
+
+  put([...before, M.today()]);
+  toast(`${place.name} — отмечено`, "calm", { undo: () => put(before) });
+}

@@ -1645,3 +1645,60 @@ test("пульт: найденное отмечается тем же спосо
 
   delete globalThis.localStorage;
 });
+
+/* ------------------------------------------------------------ клавиатура */
+
+test("клавиатура: курсор упирается в края и не ползёт по кругу", async () => {
+  const { cursor } = await import("../core/keys.js");
+  globalThis.requestAnimationFrame ??= () => {};
+  globalThis.document ??= { querySelector: () => null };
+
+  const nav = cursor();
+  const rows = ["a", "b", "c"];
+  const seen = [];
+  const press = (key) => nav.keys({ key, preventDefault() {} }, rows, {
+    redraw: () => {},
+    open: (r) => seen.push(`open:${r}`),
+    act: (r) => seen.push(`act:${r}`),
+  });
+
+  assert.equal(press("ArrowUp"), true);
+  assert.equal(nav.index, 0, "вверх с первой строки — остаться на ней, а не улететь в конец");
+
+  press("ArrowDown");
+  press("ArrowDown");
+  press("ArrowDown");
+  assert.equal(nav.index, 2, "вниз с последней — тоже остаться");
+
+  press("Enter");
+  press(" ");
+  assert.deepEqual(seen, ["open:c", "act:c"]);
+
+  // Список укоротился под курсором — он подтягивается, а не указывает в пустоту.
+  assert.equal(nav.on(["a"]), 0);
+
+  // Чужие клавиши экран не перехватывает.
+  assert.equal(press("k"), false);
+  // Пустой список молчит на всё.
+  assert.equal(nav.keys({ key: "ArrowDown", preventDefault() {} }, [], { redraw: () => {} }), false);
+});
+
+test("вещи: «разобрался» глушит гарантию, но не последнюю неделю", async () => {
+  const T = await import("../apps/things/lib/model.js");
+  const day = 86400000;
+  const now = T.today();
+
+  const soon = { warrantyUntil: now + 20 * day };
+  const last = { warrantyUntil: now + 3 * day };
+
+  assert.equal(T.warrantyNags(soon, now), true);
+  assert.equal(T.warrantyNags({ ...soon, warrantySeen: now }, now), false, "решение принято — не дёргать");
+
+  // Последняя неделя дёргает даже того, кто уже смотрел: другого случая не будет.
+  assert.equal(T.warrantyNags({ ...last, warrantySeen: now - day }, now), true);
+
+  // Кончившаяся и далёкая не дёргают вовсе.
+  assert.equal(T.warrantyNags({ warrantyUntil: now - day }, now), false);
+  assert.equal(T.warrantyNags({ warrantyUntil: now + 300 * day }, now), false);
+  assert.equal(T.warrantyNags({}, now), false);
+});
