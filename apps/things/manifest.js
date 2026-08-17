@@ -19,6 +19,9 @@ export default declare({
 
   collections: ["things"],
 
+  /** Read, never written — the scheduled Action owns the rates file. */
+  singles: [{ key: "rates", readOnly: true, accept: (data) => Boolean(data?.days) }],
+
   references: {
     places: "Вещи/Справочники/Места.md",
     kinds: "Вещи/Справочники/Виды.md",

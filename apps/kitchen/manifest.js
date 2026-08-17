@@ -5,6 +5,7 @@
 // move into the monorepo changes where the code lives, not where the data does.
 
 import { declare } from "../../core/app.js";
+import { foldClosed, mergeStamps, mergeRules, mergeLongest, mergeGone, mergeHistory } from "../../core/sync.js";
 import { EMPTY_STATE, looksLikeDemo } from "./lib/store.js";
 
 export default declare({
@@ -30,7 +31,35 @@ export default declare({
   },
 
   /** Merged record by record, with tombstones. Order is the order they sync in. */
-  collections: ["list", "stock", "receipts", "menu", "meals", "stores"],
+  collections: [
+    "list",
+    /* A finished position is flagged, never removed, so a year of groceries
+       would stay in the file at full width. After three months it has nothing
+       left to say and becomes an ordinary tombstone. */
+    { key: "stock", fold: foldClosed },
+    "receipts",
+    "menu",
+    "meals",
+    "stores",
+  ],
+
+  /**
+   * The files that are one blob rather than a list of records. Order matters:
+   * removals are written before the thing that subtracts them, or there is one
+   * round trip where a date the person deleted comes back. Each merge receives
+   * what the earlier ones produced as its third argument.
+   */
+  singles: [
+    { key: "rulesGone", message: "забытые правила", merge: (mine, theirs) => mergeStamps(mine ?? {}, theirs) },
+    { key: "rules", message: "правила", merge: (mine, theirs, done) => mergeRules(mine ?? {}, theirs, done.rulesGone ?? {}) },
+    // The longest observed life wins: both sides are reporting something that
+    // actually survived that long, so the larger number is the truer one.
+    { key: "shelfLearned", message: "выученные сроки", merge: (mine, theirs) => mergeLongest(mine ?? {}, theirs) },
+    { key: "gone", message: "снятое", merge: (mine, theirs) => mergeGone(mine ?? {}, theirs) },
+    { key: "history", message: "расход", merge: (mine, theirs, done) => mergeHistory(mine ?? {}, theirs, done.gone ?? {}) },
+    /** Written by the scheduled Action alone; a day without rates is not an empty table. */
+    { key: "rates", readOnly: true, accept: (data) => Boolean(data?.days) },
+  ],
 
   references: {
     shelf: "Справочники/Сроки.md",

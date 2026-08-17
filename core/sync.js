@@ -188,9 +188,50 @@ export function dropTombstones(entries, keepDays = 365, now = Date.now()) {
   return entries.filter((e) => !e.deleted || (e.deletedAt ?? e.at ?? 0) > cutoff);
 }
 
-/* Read on every sync rather than once at import: the manifest is declared after
-   this module loads, and a list frozen at import time would be the last app's. */
-const collections = () => app().collections.map((key) => [key, gh.paths[key]]);
+/**
+ * Every file one round would touch, in the order it touches them.
+ *
+ * Pure, and takes the manifest rather than reaching for the running app, so a
+ * test can ask all four apps what they would do without a network anywhere near
+ * it. That is not decoration: the round used to be written out by name, and it
+ * named the kitchen's. `rules`, `rulesGone`, `shelfLearned`, `gone` and
+ * `history` went out on every sync of every app, and an app that never declared
+ * them still went through all five — the path came back undefined, `encodeURI`
+ * turned that into the string "undefined", and one tap on «Синк» in Вещи left
+ * five junk files in the data repository. Nothing caught it because nothing
+ * could see the round without performing it.
+ */
+export function plan(manifest = app()) {
+  const steps = [];
+
+  for (const { key, fold } of manifest.collections ?? []) {
+    steps.push({ kind: "collection", key, path: manifest.paths[key], message: `${manifest.key}: ${key}`, fold });
+  }
+
+  /* The files that are one blob rather than a list of records, each with its own
+     idea of what merging means. Order is the manifest's: removals are written
+     before whatever subtracts them. */
+  for (const single of manifest.singles ?? []) {
+    steps.push({
+      kind: single.readOnly ? "read" : "single",
+      key: single.key,
+      path: manifest.paths[single.key],
+      message: `${manifest.key}: ${single.message ?? single.key}`,
+      merge: single.merge,
+      accept: single.accept,
+    });
+  }
+
+  return steps;
+}
+
+/**
+ * A merged collection, aged by whatever rule it declared, minus stale tombstones.
+ *
+ * The ageing rule used to be `key === "stock"` written into the core — a kitchen
+ * habit that Вещи and Места would have silently missed on the day they needed it.
+ */
+const settle = (entries, fold) => dropTombstones(fold ? fold(entries) : entries);
 
 let running = null;
 let lastTry = 0;
@@ -269,97 +310,54 @@ export async function sync({ onStep } = {}) {
     const merged = {};
     const report = { pulled: 0, pushed: 0, skipped: 0, collections: [] };
 
-    for (const [key, path] of collections()) {
-      onStep?.(key);
-      const written = await gh.writeJson(
-        path,
-        () => state[key],
-        {
-          message: `kitchen: ${key}`,
-          merge: (remote) => {
-            const theirs = Array.isArray(remote) ? remote : [];
-            const merged = mergeById(state[key] ?? [], theirs);
-            const result = dropTombstones(key === "stock" ? foldClosed(merged) : merged);
-            if (theirs.length !== result.length) report.pulled += 1;
-            return result;
-          },
-        }
-      );
+    const steps = plan();
 
-      merged[key] = written.data;
+    for (const step of steps) {
+      onStep?.(step.key);
+
+      if (step.kind === "read") {
+        // Read, never written: a scheduled Action owns the file, and a device
+        // writing its own copy back would fight the schedule every night.
+        const res = await gh.readJson(step.path, null).catch((err) => {
+          log.warn("синк", `${step.key}: файл не прочитан`, err?.message);
+          return { data: null };
+        });
+        merged[step.key] = res.data;
+        continue;
+      }
+
+      const written = await gh.writeJson(step.path, () => state[step.key], {
+        message: step.message,
+        merge: (remote) => {
+          if (step.kind === "single") return step.merge(state[step.key], remote ?? {}, merged);
+          const theirs = Array.isArray(remote) ? remote : [];
+          const result = settle(mergeById(state[step.key] ?? [], theirs), step.fold);
+          if (theirs.length !== result.length) report.pulled += 1;
+          return result;
+        },
+      });
+
+      merged[step.key] = written.data;
       if (written.skipped) report.skipped += 1;
       else {
         report.pushed += 1;
-        report.collections.push(key);
+        if (step.kind === "collection") report.collections.push(step.key);
       }
     }
-
-    onStep?.("rulesGone");
-    const rulesGone = await gh.writeJson(gh.paths.rulesGone, () => state.rulesGone ?? {}, {
-      message: "kitchen: забытые правила",
-      merge: (remote) => mergeStamps(state.rulesGone ?? {}, remote ?? {}),
-    });
-    if (rulesGone.skipped) report.skipped += 1;
-    else report.pushed += 1;
-
-    onStep?.("rules");
-    const rules = await gh.writeJson(gh.paths.rules, () => state.rules, {
-      message: "kitchen: правила",
-      merge: (remote) => mergeRules(state.rules, remote ?? {}, rulesGone.data ?? {}),
-    });
-    if (rules.skipped) report.skipped += 1;
-    else report.pushed += 1;
-
-    onStep?.("shelfLearned");
-    const learned = await gh.writeJson(gh.paths.shelfLearned, () => state.shelfLearned ?? {}, {
-      message: "kitchen: выученные сроки",
-      // The longest observed life wins: both sides are reporting something that
-      // actually survived that long, so the larger number is the truer one.
-      merge: (remote) => mergeLongest(state.shelfLearned ?? {}, remote ?? {}),
-    });
-    if (learned.skipped) report.skipped += 1;
-    else report.pushed += 1;
-
-    // Removals go first: the merged history below subtracts them, so writing
-    // them second would leave one round trip where the date is back.
-    onStep?.("gone");
-    const gone = await gh.writeJson(gh.paths.gone, () => state.gone ?? {}, {
-      message: "kitchen: снятое",
-      merge: (remote) => mergeGone(state.gone ?? {}, remote ?? {}),
-    });
-    if (gone.skipped) report.skipped += 1;
-    else report.pushed += 1;
-
-    onStep?.("history");
-    const history = await gh.writeJson(gh.paths.history, () => state.history, {
-      message: "kitchen: расход",
-      merge: (remote) => mergeHistory(state.history, remote ?? {}, gone.data ?? {}),
-    });
-    if (history.skipped) report.skipped += 1;
-    else report.pushed += 1;
-
-    // Rates are read, never written: the scheduled Action owns that file, and a
-    // device writing back its own copy would fight the schedule every night.
-    onStep?.("rates");
-    const rates = await gh.readJson(gh.paths.rates, null).catch((err) => {
-      log.warn("курсы", "файл не прочитан", err?.message);
-      return { data: null };
-    });
 
     // Fold the result onto whatever the state is NOW, not onto the snapshot:
     // the same per-entry merge picks up anything ticked while we were away.
     const live = get();
     const next = { ...live };
-    for (const [key] of collections()) {
-      const folded = mergeById(live[key] ?? [], merged[key] ?? []);
-      next[key] = dropTombstones(key === "stock" ? foldClosed(folded) : folded);
+    for (const step of steps) {
+      if (step.kind === "collection") {
+        next[step.key] = settle(mergeById(live[step.key] ?? [], merged[step.key] ?? []), step.fold);
+      } else if (step.kind === "single") {
+        next[step.key] = step.merge(live[step.key], merged[step.key] ?? {}, next);
+      } else if (step.accept ? step.accept(merged[step.key]) : merged[step.key] != null) {
+        next[step.key] = merged[step.key];
+      }
     }
-    next.rulesGone = mergeStamps(live.rulesGone ?? {}, rulesGone.data ?? {});
-    next.rules = mergeRules(live.rules, rules.data ?? {}, next.rulesGone);
-    next.shelfLearned = mergeLongest(live.shelfLearned ?? {}, learned.data ?? {});
-    next.gone = mergeGone(live.gone ?? {}, gone.data ?? {});
-    if (rates.data?.days) next.rates = rates.data;
-    next.history = mergeHistory(live.history, history.data ?? {}, next.gone);
     next.syncedAt = Date.now();
 
     replace(next, "sync");

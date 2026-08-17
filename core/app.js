@@ -16,7 +16,8 @@ let current = null;
  * @param {string} manifest.name     what the person calls it
  * @param {object} manifest.empty    the shape of a state with nothing in it
  * @param {object} manifest.paths    collection name → path inside the data repo
- * @param {string[]} manifest.collections  which of those merge record by record
+ * @param {(string|object)[]} manifest.collections  which of those merge record by record
+ * @param {object[]} [manifest.singles]    one-blob files with their own idea of merging
  * @param {object} [manifest.references]   name → markdown path read from the vault
  */
 export function declare(manifest) {
@@ -26,8 +27,15 @@ export function declare(manifest) {
   current = {
     references: {},
     collections: [],
+    singles: [],
     paths: {},
     ...manifest,
+    /* A collection is a name, or a name with a rule for ageing its own entries.
+       Normalising here means the sync loop reads one shape and every manifest
+       keeps writing the short form where it has nothing extra to say. */
+    collections: (manifest.collections ?? []).map((entry) =>
+      typeof entry === "string" ? { key: entry } : entry
+    ),
     storageKey: `${manifest.key}.state.v1`,
     /* One origin serves every app on this account, so localStorage is shared.
        That is a gift — the access key is entered once and works everywhere — but

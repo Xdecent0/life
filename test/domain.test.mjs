@@ -9,7 +9,11 @@ import assert from "node:assert/strict";
 import * as M from "../apps/kitchen/lib/model.js";
 import { sameProduct, findInStock, match, rank, stepDown, lineMatchesProduct } from "../apps/kitchen/lib/recipes.js";
 import { purchaseRhythm } from "../apps/kitchen/lib/model.js";
-import { mergeById, mergeHistory, mergeGone, dropTombstones, shouldAutoSync, shouldAutoPull, referenceReport, mergeRules, mergeStamps, mergeLongest, foldClosed } from "../core/sync.js";
+import { mergeById, mergeHistory, mergeGone, dropTombstones, shouldAutoSync, shouldAutoPull, referenceReport, mergeRules, mergeStamps, mergeLongest, foldClosed, plan } from "../core/sync.js";
+import KITCHEN from "../apps/kitchen/manifest.js";
+import THINGS from "../apps/things/manifest.js";
+import CLEAN from "../apps/clean/manifest.js";
+import PLACES from "../apps/places/manifest.js";
 import { unchanged } from "../core/github.js";
 import { candidates } from "../apps/kitchen/lib/trip.js";
 import { encodePairing, parsePairing } from "../core/pair.js";
@@ -1099,4 +1103,94 @@ test("места: вид угадывается по названию, райо�
     "area"
   );
   assert.deepEqual(groups.map((g) => g.name).sort(), ["без района", "центр"]);
+});
+
+/* ------------------------------------------------------------- круг синка */
+
+/* The round used to be written out by hand and the hand was the kitchen's: five
+   of its files went out on every sync of every app. In Вещи those paths do not
+   exist, `encodeURI(undefined)` is the string "undefined", and one tap on «Синк»
+   would have left five junk files in the data repository. Nothing caught it,
+   because nothing could look at a round without performing one. */
+
+const MANIFESTS = [KITCHEN, THINGS, CLEAN, PLACES];
+
+test("синк: каждый шаг круга знает свой путь", () => {
+  for (const manifest of MANIFESTS) {
+    for (const step of plan(manifest)) {
+      assert.equal(
+        typeof step.path,
+        "string",
+        `${manifest.key}: шаг «${step.key}» идёт в ${step.path} — приложение не объявило этот путь`
+      );
+      assert.ok(step.path.length, `${manifest.key}: пустой путь у «${step.key}»`);
+    }
+  }
+});
+
+test("синк: приложение не трогает чужие файлы", () => {
+  const mine = new Map(MANIFESTS.map((m) => [m.key, new Set(plan(m).map((s) => s.path))]));
+
+  // Курсы валют читают и Кухня, и Вещи — это один общий файл, и он читается,
+  // а не пишется. Всё остальное принадлежит ровно одному приложению.
+  const shared = new Set([KITCHEN.paths.rates]);
+
+  for (const [key, paths] of mine) {
+    for (const [other, theirs] of mine) {
+      if (key === other) continue;
+      for (const path of paths) {
+        if (shared.has(path)) continue;
+        assert.ok(!theirs.has(path), `${other} пишет в ${path}, который принадлежит ${key}`);
+      }
+    }
+  }
+});
+
+test("синк: коммит подписан тем приложением, которое его сделало", () => {
+  for (const manifest of MANIFESTS) {
+    for (const step of plan(manifest)) {
+      assert.ok(
+        step.message.startsWith(`${manifest.key}: `),
+        `${manifest.key}: коммит «${step.message}» подписан не тем`
+      );
+    }
+  }
+});
+
+test("синк: свёртка закрытых позиций — правило склада, а не ядра", () => {
+  const folding = plan(KITCHEN).filter((s) => s.fold).map((s) => s.key);
+  assert.deepEqual(folding, ["stock"]);
+
+  for (const manifest of [THINGS, CLEAN, PLACES]) {
+    assert.deepEqual(plan(manifest).filter((s) => s.fold), []);
+  }
+});
+
+test("синк: курсы читаются, а пустой ответ не стирает вчерашние", () => {
+  const rates = plan(KITCHEN).find((s) => s.key === "rates");
+  assert.equal(rates.kind, "read");
+  assert.equal(rates.accept({ days: { "2026-08-17": {} } }), true);
+  assert.equal(rates.accept(null), false);
+  assert.equal(rates.accept({}), false);
+
+  // Вещи считают в тех же валютах и читают тот же файл.
+  assert.equal(plan(THINGS).find((s) => s.key === "rates").kind, "read");
+});
+
+test("синк: снятое пишется раньше расхода, который его вычитает", () => {
+  const order = plan(KITCHEN).map((s) => s.key);
+  assert.ok(order.indexOf("gone") < order.indexOf("history"));
+  assert.ok(order.indexOf("rulesGone") < order.indexOf("rules"));
+});
+
+test("синк: правила помнят забытое через результат предыдущего шага", () => {
+  const steps = plan(KITCHEN);
+  const forgotten = steps.find((s) => s.key === "rulesGone");
+  const rules = steps.find((s) => s.key === "rules");
+
+  const done = {};
+  done.rulesGone = forgotten.merge({ "МЛК 2,5%": Date.now() }, {});
+  const merged = rules.merge({ "ХЛБ": "Хлеб" }, { "МЛК 2,5%": "Молоко" }, done);
+
+  assert.deepEqual(merged, { "ХЛБ": "Хлеб" });
 });
