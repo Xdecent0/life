@@ -1702,3 +1702,50 @@ test("вещи: «разобрался» глушит гарантию, но н�
   assert.equal(T.warrantyNags({ warrantyUntil: now + 300 * day }, now), false);
   assert.equal(T.warrantyNags({}, now), false);
 });
+
+/* ------------------------------------------------- проекты: календарь дел */
+
+test("проекты: календарь показывает будущее, а просроченное держит отдельно", () => {
+  const day = PJ.DAY;
+  const now = PJ.today();
+  const iso = (at) => new Date(at).toISOString().slice(0, 10);
+
+  const state = { ...PJ.blank(), board: { проекты: [], дела: [
+    { ид: "a", текст: "вчера", срок: iso(now - day), сделано: false },
+    { ид: "b", текст: "сегодня", срок: iso(now), сделано: false },
+    { ид: "c", текст: "через неделю", срок: iso(now + 7 * day), сделано: false },
+    { ид: "d", текст: "через год", срок: iso(now + 365 * day), сделано: false },
+    { ид: "e", текст: "без срока", сделано: false },
+    { ид: "f", текст: "уже сделано", срок: iso(now), сделано: true },
+  ] } };
+
+  const cal = PJ.calendar(state, { weeks: 4, now });
+
+  assert.equal(cal.days.length, 28);
+  assert.equal(cal.days[0].at, PJ.weekStart(now), "сетка начинается с понедельника");
+
+  const inGrid = cal.days.flatMap((d) => d.deeds).map((d) => d.ид);
+  assert.deepEqual(inGrid.sort(), ["b", "c"], "в сетке только то, у чего есть место в будущем");
+
+  assert.deepEqual(cal.overdue.map((d) => d.ид), ["a"]);
+  assert.deepEqual(cal.later.map((d) => d.ид), ["d"]);
+  assert.deepEqual(cal.noDate.map((d) => d.ид), ["e"]);
+
+  // Сделанное не показывается нигде: календарь про то, что ещё предстоит.
+  assert.equal(JSON.stringify(cal).includes("уже сделано"), false);
+
+  // Сегодняшняя клетка помечена ровно одна.
+  assert.equal(cal.days.filter((d) => d.today).length, 1);
+  assert.equal(cal.days.find((d) => d.today).at, now);
+});
+
+test("проекты: неделя начинается с понедельника, а не с воскресенья", () => {
+  // 2026-08-17 — понедельник; проверяем оба края недели.
+  const monday = Date.UTC(2026, 7, 17);
+  const sunday = Date.UTC(2026, 7, 23);
+
+  assert.equal(PJ.weekStart(monday), monday);
+  assert.equal(PJ.weekStart(sunday), monday);
+  assert.equal(PJ.weekStart(Date.UTC(2026, 7, 24)), Date.UTC(2026, 7, 24));
+  assert.deepEqual(PJ.WEEKDAYS[0], "пн");
+});

@@ -422,3 +422,53 @@ export function plural(n, one, few, many) {
   if (mod10 >= 2 && mod10 <= 4) return few;
   return many;
 }
+
+/* ---------- дела по дням ---------- */
+
+/** Понедельник недели, в которую попал день: неделя начинается с него. */
+export function weekStart(at = today()) {
+  const d = new Date(at);
+  const shift = (d.getUTCDay() + 6) % 7;
+  return at - shift * DAY;
+}
+
+/**
+ * Календарь дел на несколько недель вперёд.
+ *
+ * Список отвечает «что не сделано», и на нём срок — это подпись сбоку. Вопрос,
+ * ради которого сроки вообще ставят, другой: не завалена ли следующая среда.
+ * На него отвечает только сетка, где видно и пустые дни тоже.
+ *
+ * Просроченное в сетку не идёт: у него уже нет своего места в будущем, и
+ * рисовать его на прошлой неделе значит прятать. Оно собирается отдельной
+ * кучей перед календарём — как и дела без срока после него.
+ */
+export function calendar(state, { weeks = 4, now = today() } = {}) {
+  const open = openDeeds(state);
+  const at = (d) => (d.срок ? Date.parse(d.срок) : null);
+
+  const start = weekStart(now);
+  const days = Array.from({ length: weeks * 7 }, (_, i) => {
+    const day = start + i * DAY;
+    return {
+      at: day,
+      today: day === now,
+      past: day < now,
+      deeds: open.filter((d) => at(d) === day),
+    };
+  });
+
+  const last = start + weeks * 7 * DAY;
+
+  return {
+    days,
+    overdue: open.filter((d) => at(d) != null && at(d) < now),
+    later: open.filter((d) => at(d) != null && at(d) >= last),
+    noDate: open.filter((d) => at(d) == null),
+  };
+}
+
+/** День словами — короткой подписью в клетке. */
+export const dayNum = (at) => new Date(at).getUTCDate();
+
+export const WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"];

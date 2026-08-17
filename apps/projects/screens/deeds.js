@@ -7,7 +7,53 @@ import * as M from "../lib/model.js";
 import { queue } from "./row.js";
 
 let showDone = false;
+let view = "список";
 const nav = cursor();
+
+/**
+ * Календарь дел.
+ *
+ * Список отвечает «что не сделано», и срок в нём — подпись сбоку. Вопрос, ради
+ * которого сроки вообще ставят, другой: не завалена ли следующая среда. На него
+ * отвечает только сетка — потому что в ней видно и пустые дни тоже.
+ */
+function grid(state) {
+  const { days, overdue, later, noDate } = M.calendar(state);
+  const now = M.today();
+
+  const cell = (d) => {
+    const rows = d.deeds.map((x) => `<button class="calrow" type="button" data-act="tick" data-id="${esc(x.ид)}"
+      title="${esc(x.текст)}${x.проект ? ` · ${esc(x.проект)}` : ""}">${esc(x.текст)}</button>`).join("");
+
+    return `<div class="calday" data-today="${d.today ? 1 : 0}" data-past="${d.past ? 1 : 0}" data-busy="${d.deeds.length ? 1 : 0}">
+      <span class="calnum num">${M.dayNum(d.at)}</span>
+      ${rows}
+    </div>`;
+  };
+
+  const pile = (name, rows, tone) => rows.length
+    ? `<section class="pane ${tone ?? ""}">
+        <div class="head-row"><div class="label">${esc(name)}</div><span class="tdim num">${rows.length}</span></div>
+        ${rows.map((d) => `<label class="check">
+          <input type="checkbox" data-act-change="deed" data-id="${esc(d.ид)}">
+          <span class="check-text">${esc(d.текст)}</span>
+          ${d.срок ? `<span class="tdim ${M.overdue(d, now) ? "tdim--alarm" : ""}">${esc(d.срок)}</span>` : ""}
+        </label>`).join("")}
+      </section>`
+    : "";
+
+  return html`${raw(pile("Просрочено", overdue, "pane--alarm"))}
+
+    <div class="cal">
+      ${raw(M.WEEKDAYS.map((w) => `<span class="calhead">${w}</span>`).join(""))}
+      ${raw(days.map(cell).join(""))}
+    </div>
+
+    ${raw(pile("Дальше", later))}
+    ${raw(pile("Без срока", noDate))}
+
+    <p class="prose prose--muted plan-note">Просроченное в сетку не идёт: у него уже нет своего места в будущем, а рисовать его на прошлой неделе значит прятать. Щелчок по делу в клетке закрывает его — правка уедет в заметку «Дела».</p>`;
+}
 
 export default {
   title: () => "Дела",
@@ -29,10 +75,15 @@ export default {
           <button class="seg-btn" type="button" data-act="filter" data-done="0" aria-pressed="${!showDone}">Открытые</button>
           <button class="seg-btn" type="button" data-act="filter" data-done="1" aria-pressed="${showDone}">Все</button>
         </div>
+        <div class="seg seg--sm" role="group" aria-label="Как показывать">
+          <span class="seg-label">видом</span>
+          ${raw(["список", "календарём"].map((v) =>
+            `<button class="seg-btn" type="button" data-act="view" data-view="${v}" aria-pressed="${view === v}">${v}</button>`).join(""))}
+        </div>
       </header>
 
       <div class="body">
-        ${raw(rows.length ? `<section class="pane">
+        ${raw(view === "календарём" ? grid(state) : rows.length ? `<section class="pane">
           ${rows.map((d, i) => `<label class="check ${d.сделано ? "check--done" : ""}" data-focused="${i === at ? 1 : 0}">
             <input type="checkbox" data-act-change="deed" data-id="${esc(d.ид)}" ${d.сделано ? "checked" : ""}>
             <span class="check-text">${esc(d.текст)}${d.проект ? ` <span class="tdim">· ${esc(d.проект)}</span>` : ""}</span>
@@ -49,6 +100,7 @@ export default {
   },
 
   keys(e, state) {
+    if (view === "календарём") return;
     const all = M.deeds(state);
     const rows = showDone ? all : all.filter((d) => !d.сделано);
 
@@ -62,6 +114,16 @@ export default {
   },
 
   actions: {
+    view(el) { view = el.dataset.view; touch("дела.вид"); },
+
+    /** Щелчок по делу в клетке закрывает его — из календаря тоже. */
+    tick(el, state) {
+      const deed = M.deeds(state).find((d) => d.ид === el.dataset.id);
+      if (!deed) return;
+      queue(M.change("дело", { ид: deed.ид, сделано: true }));
+      toast(`${deed.текст} — сделано`);
+    },
+
     filter(el) {
       showDone = el.dataset.done === "1";
       touch("дела.фильтр");

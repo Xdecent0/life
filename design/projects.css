@@ -267,6 +267,117 @@
   white-space: nowrap;
 }
 
+/* ---------- календарь дел ---------- */
+
+/* Четыре недели одной сеткой. Месяц целиком не нужен: сроки ставят на ближайшие
+   недели, а прошлое в календаре дел — это просроченное, и ему место в куче
+   перед сеткой, а не в клетке, мимо которой глаз уже прошёл. */
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+  margin: 14px var(--pad);
+  max-width: 900px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  overflow: hidden;
+}
+
+.calhead {
+  background: var(--surface);
+  padding: 7px 8px;
+  font-size: var(--t-label);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  text-align: center;
+}
+
+.calday {
+  background: var(--bg);
+  min-height: 74px;
+  padding: 6px 6px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.calnum {
+  font-size: var(--t-meta);
+  color: var(--ink-5);
+}
+
+/* Прошедший день не серый «выключенный», а просто тише: дела в нём настоящие,
+   и увидеть их надо. */
+.calday[data-past="1"] { background: var(--surface); }
+.calday[data-past="1"] .calnum { opacity: 0.6; }
+
+/* Сегодня отмечено точкой у числа, а не заливкой всей клетки: заливка спорила
+   бы с занятостью дня, которую несут сами дела. */
+.calday[data-today="1"] .calnum {
+  color: var(--accent-deep);
+  font-weight: 700;
+}
+
+.calday[data-today="1"] .calnum::after {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 4px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--accent);
+}
+
+/* Дело в клетке — кнопка: щёлкнул и закрыл, не уходя в список. Две строки
+   максимум: клетка недели не читальный зал. */
+.calrow {
+  text-align: left;
+  font-size: var(--t-meta);
+  line-height: 1.25;
+  padding: 3px 5px;
+  border-radius: 6px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .calrow:hover {
+      border-color: var(--accent-deep);
+      color: var(--accent-deep);
+    }
+}
+
+/* На телефоне семь колонок по 40 px — это подписи в один символ и дела, которых
+   не прочитать. Сетка становится списком недель: день строкой, дела рядом. */
+@media (max-width: 700px) {
+  .cal {
+    grid-template-columns: 34px minmax(0, 1fr);
+    margin: 14px var(--pad);
+  }
+
+  .calhead { display: none; }
+
+  .calday {
+    display: grid;
+    grid-template-columns: subgrid;
+    grid-column: span 2;
+    min-height: 0;
+    padding: 8px 10px;
+  }
+
+  /* Пустой день на телефоне не нужен вовсе: он занимает строку и не отвечает
+     ни на один вопрос. Занятость недели видна по тому, что осталось. */
+  .calday[data-busy="0"] { display: none; }
+}
+
 /* ---------- лента сделанного ---------- */
 
 /* Веха в заметке бывает абзацем: у одной здесь семь строк описания фазы. В ленте
