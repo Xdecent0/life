@@ -20,7 +20,12 @@ export const state = () => ({ cut, sort, space, cycle, query });
 
 /* ---------- полосы ---------- */
 
-/** Цикл: где мы в нём. Полоска недель — та же, что на доске. */
+/**
+ * Цикл: где мы в нём.
+ *
+ * Полоска недель, а не число: цикл — это про «сколько ещё осталось», и
+ * двенадцать делений отвечают на это раньше, чем глаз дочитает цифру.
+ */
 function cycleBar(state) {
   const c = M.cycleOf(state);
   if (!c) return "";
@@ -28,24 +33,41 @@ function cycleBar(state) {
   const weeks = Array.from({ length: c.всего }, (_, i) =>
     `<s class="${i < c.неделя ? "on" : ""}"></s>`).join("");
 
+  /* На телефоне та же правда короче: полная фраза переносится на вторую строку
+     и стоит столько же места, сколько две строки проектов. */
+  const said = wide.matches
+    ? `неделя ${c.неделя} из ${c.всего} · осталось ${c.осталось} ${M.plural(c.осталось, "день", "дня", "дней")}`
+    : `${c.неделя}/${c.всего} · ${c.осталось} дн.`;
+
   return html`<div class="cycbar">
-    <span class="cycname">${c.имя}</span>
     <span class="wk" role="img" aria-label="неделя ${c.неделя} из ${c.всего}">${raw(weeks)}</span>
-    <span class="tdim">неделя ${c.неделя} из ${c.всего} · осталось ${c.осталось} ${M.plural(c.осталось, "день", "дня", "дней")}</span>
-    <span class="cycfilter">
-      ${raw(["все", "в цикле", "вне"].map((v) =>
-        `<button class="chip chip--sm" type="button" data-act="cycle" data-cycle="${esc(v)}" aria-pressed="${cycle === v}">${esc(v)}</button>`).join(""))}
-    </span>
+    <span class="cycname">${c.имя}</span>
+    <span class="tdim">${said}</span>
   </div>`;
 }
 
-function spaceBar(state) {
-  const spaces = M.spacesOf(state);
-  if (spaces.length < 2) return "";
+/** Раскладка — тот же переключатель и то же слово, что у соседей. */
+function cutSwitch() {
+  return html`<div class="seg seg--sm" role="group" aria-label="Как раскладывать">
+    <span class="seg-label">раскладка</span>
+    ${raw(M.CUTS.map((x) =>
+      `<button class="seg-btn" type="button" data-act="cut" data-cut="${x.key}" aria-pressed="${cut === x.key}">${esc(x.label.toLowerCase())}</button>`).join(""))}
+  </div>`;
+}
 
-  return html`<div class="chips chips--bar">
-    ${raw(["все", ...spaces].map((w) =>
-      `<button class="chip chip--sm" type="button" data-act="space" data-space="${esc(w)}" aria-pressed="${space === w}">${esc(w)}</button>`).join(""))}
+/** Фильтры, которые действуют разом на всё: цикл и пространство. */
+function filterBar(state) {
+  const spaces = M.spacesOf(state);
+  const chip = (act, value, current) =>
+    `<button class="chip chip--sm" type="button" data-act="${act}" data-${act}="${esc(value)}" aria-pressed="${current === value}">${esc(value)}</button>`;
+
+  return html`<div class="filterbar">
+    <span class="seg-label">цикл</span>
+    ${raw(["все", "в цикле", "вне"].map((v) => chip("cycle", v, cycle)).join(""))}
+    ${raw(spaces.length > 1
+      ? `<span class="toolbar-sep" aria-hidden="true"></span><span class="seg-label">где</span>`
+        + ["все", ...spaces].map((w) => chip("space", w, space)).join("")
+      : "")}
   </div>`;
 }
 
@@ -109,52 +131,79 @@ export default {
     const refused = M.refused(s);
     const age = M.snapshotAge(s);
 
+    const list = html`
+      ${raw(refused.length ? `<section class="refused">
+        <div class="label">Волт не принял ${refused.length} ${M.plural(refused.length, "правку", "правки", "правок")}</div>
+        ${refused.map((e) => `<p class="prose">${esc(e.ответ)}</p>`).join("")}
+        <p class="prose prose--muted">Почти всегда это значит, что строку правили руками, пока правка ехала.</p>
+        <button class="btn btn--ghost btn--sm" type="button" data-act="forget">Понятно</button>
+      </section>` : "")}
+
+      ${raw(cycleBar(s))}
+      ${raw(filterBar(s))}
+      ${raw(bulkBar())}
+      ${raw(query ? "" : hints(s))}
+
+      ${raw(blocks.map((g) => `<div class="aisle aisle--grp">
+          <span>${esc(g.name)}</span><span class="tdim num">${g.items.length}</span>
+        </div>
+        ${g.items.length
+          ? g.items.map((p) => row(s, p, { picked: picked.has(p.путь) })).join("")
+          : `<p class="prose prose--muted grp-empty">пусто</p>`}`).join(""))}
+
+      <p class="prose prose--muted plan-note">Окно в доску, а не вторая её копия: карточки живут заметками в волте. ${raw(age == null ? "Снимок не датирован." : age === 0 ? "Снимок собран сегодня." : `Снимку ${age} ${esc(M.plural(age, "день", "дня", "дней"))}.`)}</p>`;
+
+    const head = html`<h1>Проекты</h1>
+      <span class="head-sub num">${M.live(s).length} в работе · ${M.openDeeds(s).length} ${M.plural(M.openDeeds(s).length, "дело", "дела", "дел")}</span>`;
+
+    /* Панель с порядком и подсказкой клавиш — десктопная деталь системы; на
+       телефоне соседние приложения ставят одну строку с раскладкой, и три
+       переключателя над списком там стоили бы четверти экрана. */
+    if (!wide.matches) {
+      return html`<main class="screen">
+        <header class="head head--dark"><div>${raw(head)}</div></header>
+        <div class="body">
+          <div class="groupbar">${raw(cutSwitch())}</div>
+          ${raw(list)}
+        </div>
+      </main>`;
+    }
+
     return html`<main class="screen">
       <header class="head head--dark">
-        <div>
-          <h1>Проекты</h1>
-          <span class="head-sub num">${M.live(s).length} в работе · ${M.openDeeds(s).length} ${M.plural(M.openDeeds(s).length, "дело", "дела", "дел")}</span>
-        </div>
-        <div class="seg" role="group" aria-label="Разрез">
-          ${raw(M.CUTS.map((x) =>
-            `<button class="seg-btn" type="button" data-act="cut" data-cut="${x.key}" aria-pressed="${cut === x.key}">${x.label}</button>`).join(""))}
+        <div class="head-row">
+          <div>${raw(head)}</div>
+          <form class="search" data-act-submit="find" role="search">
+            <label class="sr-only" for="proj-q">Поиск по проектам</label>
+            ${raw(icon("i-search", { size: 16, stroke: "#5f7468" }))}
+            <input class="search-field" id="proj-q" name="q" value="${query}" placeholder="Поиск" autocomplete="off">
+            <kbd>/</kbd>
+          </form>
         </div>
       </header>
 
-      <div class="body">
-        ${raw(refused.length ? `<section class="refused">
-          <div class="label">Волт не принял ${refused.length} ${M.plural(refused.length, "правку", "правки", "правок")}</div>
-          ${refused.map((e) => `<p class="prose">${esc(e.ответ)}</p>`).join("")}
-          <p class="prose prose--muted">Почти всегда это значит, что строку правили руками, пока правка ехала.</p>
-          <button class="btn btn--ghost btn--sm" type="button" data-act="forget">Понятно</button>
-        </section>` : "")}
-
-        ${raw(cycleBar(s))}
-        ${raw(spaceBar(s))}
-
-        <div class="findrow">
-          <label class="sr-only" for="proj-q">Поиск по проектам</label>
-          <input class="field" id="proj-q" type="search" value="${query}" data-act-input="find"
-                 placeholder="название, цель, аппетит" autocomplete="off">
-          <div class="seg seg--quiet" role="group" aria-label="Порядок">
-            ${raw(M.SORTS.map((x) =>
-              `<button class="seg-btn" type="button" data-act="sort" data-sort="${x.key}" aria-pressed="${sort === x.key}">${x.label}</button>`).join(""))}
-          </div>
+      <div class="toolbar">
+        ${raw(cutSwitch())}
+        <span class="toolbar-sep" aria-hidden="true"></span>
+        <div class="seg seg--sm" role="group" aria-label="Порядок">
+          <span class="seg-label">порядок</span>
+          ${raw(M.SORTS.map((x) =>
+            `<button class="seg-btn" type="button" data-act="sort" data-sort="${x.key}" aria-pressed="${sort === x.key}">${x.short}</button>`).join(""))}
         </div>
-
-        ${raw(bulkBar())}
-        ${raw(query ? "" : hints(s))}
-
-        ${raw(blocks.map((g) => `<div class="aisle aisle--grp">
-            <span>${esc(g.name)}</span><span class="tdim num">${g.items.length}</span>
-          </div>
-          ${g.items.length
-            ? g.items.map((p) => row(s, p, { picked: picked.has(p.путь) })).join("")
-            : `<p class="prose prose--muted grp-empty">пусто</p>`}`).join(""))}
-
-        <p class="prose prose--muted plan-note">Окно в доску, а не вторая её копия: карточки живут заметками в волте. ${raw(age == null ? "Снимок не датирован." : age === 0 ? "Снимок собран сегодня." : `Снимку ${age} ${esc(M.plural(age, "день", "дня", "дней"))}.`)}</p>
+        <span class="toolbar-gap"></span>
+        <span class="toolbar-hint"><kbd>/</kbd> искать</span>
       </div>
+
+      <div class="body">${raw(list)}</div>
     </main>`;
+  },
+
+  /* Та же клавиша, что в остальных четырёх: подсказка в панели должна работать,
+     а не быть картинкой клавиши. */
+  keys(e) {
+    if (e.key !== "/" || /^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName)) return;
+    e.preventDefault();
+    document.getElementById("proj-q")?.focus();
   },
 
   actions: {
@@ -162,7 +211,7 @@ export default {
     sort(el) { sort = el.dataset.sort; touch("доска.порядок"); },
     space(el) { space = el.dataset.space; touch("доска.пространство"); },
     cycle(el) { cycle = el.dataset.cycle; touch("доска.цикл"); },
-    find(el) { query = el.value; touch("доска.поиск"); },
+    find(form) { query = String(new FormData(form).get("q") ?? "").trim(); touch("доска.поиск"); },
 
     pick(el) {
       const path = el.dataset.path;

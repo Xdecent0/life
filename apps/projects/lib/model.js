@@ -114,11 +114,13 @@ export const CUTS = [
   { key: "область", label: "Область" },
 ];
 
+/* `short` — то, что стоит в панели: четыре подписи вида «по беспокойству»
+   занимают полстроки и читаются как предложение, а не как переключатель. */
 export const SORTS = [
-  { key: "состояние", label: "по беспокойству", of: (p) => RANK[healthOf(p)] ?? 9 },
-  { key: "имя", label: "по названию", of: (p) => String(p.имя).toLowerCase() },
-  { key: "процент", label: "по прогрессу", of: (p) => -(percent(p) ?? -1) },
-  { key: "стоит", label: "по простою", of: (p) => -(p.дней_без_движения ?? 0) },
+  { key: "состояние", label: "по беспокойству", short: "тревога", of: (p) => RANK[healthOf(p)] ?? 9 },
+  { key: "имя", label: "по названию", short: "имя", of: (p) => String(p.имя).toLowerCase() },
+  { key: "процент", label: "по прогрессу", short: "прогресс", of: (p) => -(percent(p) ?? -1) },
+  { key: "стоит", label: "по простою", short: "простой", of: (p) => -(p.дней_без_движения ?? 0) },
 ];
 
 export const sortBy = (rows, key) => {

@@ -35,12 +35,12 @@ export function row(state, p, { picked = false } = {}) {
       ${raw(pending ? `<span class="chip chip--sm">ждёт волта: ${pending}</span>` : "")}
     </span>
 
-    ${raw(pc == null
-      ? `<span class="proj-count tdim">${esc(p.ждёт?.length ? `ждёт: ${p.ждёт.join(", ")}` : "ожидание")}</span>`
+    <span class="proj-count">${raw(pc == null
+      ? `<span class="tdim">${esc(p.ждёт?.length ? `ждёт: ${p.ждёт.join(", ")}` : "ожидание")}</span>`
       : `<span class="proj-bar" role="img" aria-label="${all ? `${done} из ${all}` : `${pc}%`}">
            <span class="proj-fill" style="width: ${pc}%"></span>
          </span>
-         <span class="proj-count num">${all ? `${done}/${all}` : `${pc}%`}</span>`)}
+         <span class="num">${all ? `${done}/${all}` : `${pc}%`}</span>`)}</span>
   </div>`;
 }
 

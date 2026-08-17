@@ -5,36 +5,51 @@
    все классы которого не встречаются ни в одном другом приложении.
    Грузится вместе с design/app.css, а не вместо него. */
 
+/* Всё, что стоит над списком, живёт в той же колонке, что и строки: иначе
+   счётчик группы уезжает на триста пикселей правее самих проектов, и глаз
+   перестаёт видеть в них один столбец. Ширину задаёт оболочка (.row), здесь
+   только то же значение. */
+.cycbar,
+.filterbar,
+.hints,
+.bulkbar,
+.aisle--grp,
+.grp-empty,
+.plan-note,
+.refused {
+  max-width: 900px;
+}
+
 /* ---------- цикл ---------- */
 
 /* Полоска недель, а не проценты: цикл — это про «сколько ещё осталось», и
-   двенадцать делений отвечают на это быстрее любого числа. */
+   двенадцать делений отвечают на это раньше, чем глаз дочитает цифру. */
 .cycbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  padding: 12px 0 14px;
-  border-bottom: 1px solid var(--line);
-  margin-bottom: 14px;
+  padding: 14px var(--pad) 4px;
   font-size: var(--t-meta);
+  color: var(--ink-3);
 }
 
 .cycname {
   font-weight: 600;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
 .wk {
   display: flex;
   gap: 3px;
-  width: 132px;
+  width: 108px;
   flex: none;
 }
 
 .wk s {
   flex: 1;
-  height: 6px;
+  height: 5px;
   border-radius: 2px;
   background: var(--line);
   text-decoration: none;
@@ -42,27 +57,15 @@
 
 .wk s.on { background: var(--accent); }
 
-.cycfilter {
+/* ---------- фильтры ---------- */
+
+.filterbar {
   display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.chips--bar { padding-bottom: 12px; }
-
-/* ---------- поиск и порядок ---------- */
-
-.findrow {
-  display: flex;
-  gap: 10px;
   align-items: center;
+  gap: 6px;
   flex-wrap: wrap;
-  padding-bottom: 12px;
+  padding: 8px var(--pad) 4px;
 }
-
-.findrow .field { flex: 1; min-width: 200px; }
-
-.seg--quiet { flex: none; }
 
 /* ---------- группы ---------- */
 
@@ -74,8 +77,16 @@
 }
 
 .grp-empty {
-  padding: 4px 0 14px;
+  padding: 4px var(--pad) 14px;
   margin: 0;
+}
+
+/* Строка объяснения под списком тянулась на все 900 px — это 138 знаков, вдвое
+   больше того, на чём глаз держит строку. Колонка списка и колонка текста —
+   разные меры. */
+.plan-note {
+  max-width: 62ch;
+  padding: 16px var(--pad) 0;
 }
 
 /* ---------- строка проекта ---------- */
@@ -84,11 +95,10 @@
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   grid-template-areas:
-    "pick name  count"
-    ".    meta  meta"
-    ".    bar   bar";
+    "pick name count"
+    ".    meta meta";
   align-items: center;
-  gap: 3px 12px;
+  gap: 4px 14px;
 }
 
 /* Состояние несёт точка слева от имени, а не толстая полоса по краю карточки:
@@ -140,20 +150,28 @@
 
 .proj-count {
   grid-area: count;
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: var(--t-meta);
   color: var(--ink-4);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-/* Полоса, а не кольцо: проценты сравнивают краем глаза, строку со строкой, и
-   дорожки одинаковой длины сравниваются, а кольца — нет. */
+.proj-count .num { min-width: 42px; text-align: right; }
+
+/* Короткая дорожка в колонке справа, а не линия во всю строку.
+   Во всю строку она читалась не как прогресс, а как второй разделитель строк —
+   и спорила с настоящим, который рисует сама строка снизу. Одинаковая длина
+   у всех строк — то, что делает её сравнимой; полная ширина это как раз
+   ломала, потому что зависела от длины названия. */
 .proj-bar {
-  grid-area: bar;
   display: block;
-  height: 3px;
-  margin-top: 5px;
-  border-radius: 2px;
+  width: 56px;
+  height: 5px;
+  flex: none;
+  border-radius: 3px;
   background: var(--line);
   overflow: hidden;
 }
@@ -207,11 +225,24 @@
 
 /* ---------- подсказки ---------- */
 
+/* Одна прокручиваемая строка, а не три чипа стопкой: на телефоне свёрнутые
+   подсказки съедали столько же, сколько два проекта, ради того же смысла. */
 .hints {
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  padding: 2px 0 14px;
+  padding: 2px var(--pad) 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hints::-webkit-scrollbar { display: none; }
+.hints .chip { flex: none; }
+
+@media (min-width: 900px) {
+  .hints {
+      flex-wrap: wrap;
+      overflow-x: visible;
+    }
 }
 
 /* ---------- вехи и дела ---------- */
