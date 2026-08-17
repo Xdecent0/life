@@ -35,22 +35,22 @@ const root = document.getElementById("root");
 function tile(entry) {
   const seen = peek(entry);
 
-  const status = !entry.ready
-    ? `<span class="tdim">ещё не построено</span>`
-    : seen
-      ? `<span class="tdim">${esc(seen.summary || "пусто")}</span>${seen.pending ? ` <span class="chip chip--alarm chip--sm">${seen.pending} не отправлено</span>` : ""}`
-      : `<span class="tdim">на этом устройстве ещё не открывалось</span>`;
+  /* Three different silences, and they are not the same thing: not built yet,
+     built but never opened here, and open with nothing in it. */
+  const state = !entry.ready
+    ? "ещё не построено"
+    : !seen
+      ? "на этом устройстве не открывалось"
+      : seen.summary || "пусто";
 
-  const inner = html`<span class="tile tile--lg" aria-hidden="true">${raw(icon(entry.icon, { size: 22, stroke: "#1c3327" }))}</span>
-    <span class="row-main">
-      <span class="row-name">${entry.name}</span>
-      <span class="row-why">${entry.what}</span>
-      <span class="row-why">${raw(status)}</span>
-    </span>`;
+  const inner = html`<span class="tile" aria-hidden="true">${raw(icon(entry.icon, { size: 19, stroke: "#1c3327" }))}</span>
+    <span class="hub-app-name">${entry.name}</span>
+    <span class="hub-app-what">${entry.what}</span>
+    <span class="hub-app-state">${state}${raw(seen?.pending ? ` <span class="chip chip--alarm chip--sm">${seen.pending} не отправлено</span>` : "")}</span>`;
 
   return entry.href
-    ? `<a class="zone zone--app" href="${esc(entry.href)}">${inner}</a>`
-    : `<div class="zone zone--app" data-soon="1">${inner}</div>`;
+    ? `<a class="hub-app" href="${esc(entry.href)}">${inner}</a>`
+    : `<div class="hub-app" data-soon="1">${inner}</div>`;
 }
 
 function connectPane() {
@@ -140,20 +140,25 @@ function installPane() {
 /* ---------- screen ---------- */
 
 function render() {
-  root.innerHTML = html`<div class="screen">
-    <header class="head head--dark">
+  root.innerHTML = html`<div class="hub">
+    <header class="hub-head">
       <h1>Жизнь</h1>
-      <span class="head-sub">Приложения, которые знают про твои вещи, дом и еду. Настройка у них общая.</span>
+      <p>Четыре приложения про быт. Ключ доступа и телефон настраиваются здесь — один раз на все.</p>
     </header>
 
-    <div class="body">
-      <div class="aisle">Приложения</div>
-      <div class="zones zones--apps">${raw(APPS.map(tile).join(""))}</div>
+    <section class="hub-section">
+      <span class="hub-label">Приложения</span>
+      <div class="hub-apps">${raw(APPS.map(tile).join(""))}</div>
+    </section>
 
-      ${raw(connectPane())}
-      ${raw(pairPane())}
-      ${raw(installPane())}
-    </div>
+    <section class="hub-section">
+      <span class="hub-label">Настройка</span>
+      <div class="hub-panes">
+        ${raw(connectPane())}
+        ${raw(pairPane())}
+        ${raw(installPane())}
+      </div>
+    </section>
   </div>`;
 }
 

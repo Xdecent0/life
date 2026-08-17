@@ -128,6 +128,21 @@ button {
    display — clock and notch included. The inset belongs on .head and not on
    .app: .head--dark paints its own ground, and padding on the shell would show
    a cream strip above it. On desktop the inset is 0 and nothing moves. */
+/* Rows, tiles and tabs are built out of anchors, and a bare anchor arrives in
+   Times-blue with an underline through it. Chrome inherits its surroundings;
+   only running prose keeps the link's own look, because there it is a link. */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.prose a,
+.pane-note a {
+  color: var(--accent-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .head {
   padding: calc(16px + env(safe-area-inset-top)) var(--pad) 14px;
   border-bottom: 1px solid var(--line);
@@ -3290,10 +3305,24 @@ kbd {
     min-width: 0;
   }
 
+  /* A dark slab across a 1400px window is too heavy, but the page ground gave
+     the title nothing to stand on — it read as text that happened to be first.
+     A tinted bar with a firm rule, held at the top while the rows scroll under. */
   .head--dark {
-    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface);
     color: var(--ink);
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--line-firm);
+  }
+
+  .head--dark h1 {
+    font-size: 23px;
+  }
+
+  .head--dark .head-sub {
+    font-variant-numeric: tabular-nums;
   }
 
   .head--dark .head-sub {
@@ -3717,4 +3746,142 @@ kbd {
 
 .tcheck--go {
   border-radius: 50%;
+}
+
+/* ---------- пульт ---------- */
+
+/* The hub borrowed the app shell's screen classes and got the app shell's
+   assumptions with them: a flex row waiting for a sidebar that is not there,
+   which left the whole page in a 900px ribbon with half the window empty. It is
+   a different surface — a front door, not a screen inside a tool — so it owns
+   its own frame. */
+.hub {
+  max-width: 1060px;
+  margin: 0 auto;
+  padding: 0 24px 72px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.hub-head {
+  padding: 56px 0 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 46ch;
+}
+
+.hub-head h1 {
+  margin: 0;
+  font-size: clamp(30px, 4vw, 40px);
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  line-height: 1.05;
+}
+
+.hub-head p {
+  margin: 0;
+  font-size: var(--t-lead);
+  color: var(--ink-3);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+.hub-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hub-label {
+  font-size: var(--t-label);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+/* Equal columns, always: the apps are peers and a wider tile would say one of
+   them matters more. */
+.hub-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(228px, 1fr));
+  gap: 14px;
+}
+
+.hub-app {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  min-height: 152px;
+}
+
+.hub-app[data-soon="1"] {
+  background: none;
+  border-style: dashed;
+  color: var(--ink-4);
+}
+
+.hub-app-name {
+  font-size: var(--t-item);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+}
+
+.hub-app-what {
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  line-height: 1.45;
+  flex: 1;
+}
+
+.hub-app-state {
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.hub-panes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (min-width: 860px) {
+  /* Two columns once there is room: the key and the phone are one job each, and
+     stacking them made a 500px ribbon down the left of a wide window. */
+  .hub-panes {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* On the hub every block is a card, tiles included — a transparent pane beside
+   a white tile read as an unfinished half of the same row. */
+.hub .pane {
+  margin: 0;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.hub .pane--calm {
+  background: var(--surface);
+  border-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  a.hub-app:hover {
+    border-color: var(--line-firm);
+    background: var(--surface);
+  }
 }
