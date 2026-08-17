@@ -18,6 +18,7 @@ import * as M_MONEY from "../core/money.js";
 import * as log from "../core/log.js";
 import { parseTable, parseShelf, parseSynonyms, parseZones, parseRecipe } from "../core/vault.js";
 import { toStockItem } from "../apps/kitchen/lib/receipt.js";
+import * as TH from "../apps/things/lib/model.js";
 import { priceHistory, bestStore, trackingSummary, weekStart, staples } from "../apps/kitchen/lib/planning.js";
 import { SEED_SHELF, SEED_SYNONYMS, SEED_JUNK, SEED_AISLES } from "../apps/kitchen/lib/store.js";
 
@@ -979,4 +980,41 @@ test("зоны читаются из таблицы волта, а не из ч�
   // Значок необязателен — экран сам подставит полку.
   assert.equal(zones[1].icon, null);
   assert.equal(zones[1].into, "на балкон");
+});
+
+test("гарантия без даты покупки всё равно считается", () => {
+  const now = Date.UTC(2026, 7, 17);
+  const day = 86400000;
+  const thing = { name: "Ноутбук", warrantyUntil: now + 12 * day, boughtAt: null };
+
+  // Раньше это разъезжалось: строка писала «срок неизвестен», а счётчик сверху
+  // считал ту же вещь горящей. Дни и шкала — разные вопросы.
+  assert.equal(TH.warrantyRunningOut(thing, now), true);
+  assert.match(TH.warrantyLabel(thing, now), /^12 дней$/);
+
+  const f = TH.freshness(TH.withWarranty(thing), now);
+  assert.equal(f.left, 12);
+  assert.equal(f.share, null, "без даты покупки мерить не от чего — полоски нет");
+});
+
+test("вид вещи угадывается по имени, но человек главнее", () => {
+  const kinds = TH.SEED_KINDS;
+  assert.equal(TH.kindOf({ name: "Ноутбук рабочий" }, kinds).name, "техника");
+  assert.equal(TH.kindOf({ name: "Дрель" }, kinds).name, "инструмент");
+  assert.equal(TH.kindOf({ name: "Ерунда какая-то" }, kinds).name, "прочее");
+  assert.equal(TH.kindOf({ name: "Дрель", kind: "техника" }, kinds).name, "техника");
+});
+
+test("вещи без места собираются отдельной группой, а не теряются", () => {
+  const places = [{ name: "кухня" }, { name: "комната" }];
+  const things = [
+    { id: "1", name: "Чайник", place: "кухня" },
+    { id: "2", name: "Дрель", place: null },
+    { id: "3", name: "Лампа", place: "чердак" },
+  ];
+
+  const groups = TH.groupBy(things, "place", { places });
+  assert.deepEqual(groups.map((g) => g.name), ["кухня", "без места"]);
+  // Место, которого нет в справочнике, — не повод спрятать вещь.
+  assert.equal(groups[1].entries.length, 2);
 });

@@ -1,20 +1,23 @@
-// Router and chrome. Screens own their markup; this file decides which one is on
-// screen, keeps the nav honest, and funnels every click to the right handler.
+// The kitchen: which screens it has, what goes on their badges, and the three
+// things that are true of this app and no other — the demo seed, the currencies
+// shown beside the hryvnia, and the banner for when the browser stops saving.
+//
+// Everything else — routing, the sidebar, the keyboard, the sync strip, the
+// update notice — is core/shell.js and identical in every app.
 
 /* First, and deliberately: declaring the app is what lets every core module
    below know whose state, whose paths and whose reference tables it is holding. */
 import "./manifest.js";
 
-import { $, html, raw, icon, toast, wide, setCurrency } from "../../core/dom.js";
+import { $, html, raw, toast, setCurrency } from "../../core/dom.js";
 import { mountIcons } from "../../core/icons.js";
-import { get, subscribe, guardUnload, whenSaveFails } from "../../core/state.js";
+import { get, replace, guardUnload, whenSaveFails } from "../../core/state.js";
 import * as log from "../../core/log.js";
 import * as install from "../../core/install.js";
-import { demoState, isFresh, stripDemo } from "./lib/store.js";
-import { replace } from "../../core/state.js";
-import * as M from "./lib/model.js";
 import * as gh from "../../core/github.js";
-import { sync, syncing, autoSync } from "../../core/sync.js";
+import { boot, render } from "../../core/shell.js";
+import { demoState, isFresh, stripDemo } from "./lib/store.js";
+import * as M from "./lib/model.js";
 
 import list from "./screens/list.js";
 import stock from "./screens/stock.js";
@@ -32,20 +35,8 @@ import settings from "./screens/settings.js";
 import pair from "./screens/pair.js";
 
 const SCREENS = {
-  list,
-  stock,
-  item,
-  scan,
-  audit,
-  recipes,
-  recipe,
-  cook,
-  menu,
-  stores,
-  tracking,
-  receipts: receiptsScreen,
-  settings,
-  pair,
+  list, stock, item, scan, audit, recipes, recipe, cook,
+  menu, stores, tracking, receipts: receiptsScreen, settings, pair,
 };
 
 const NAV = [
@@ -58,7 +49,12 @@ const NAV = [
   { route: "receipts", label: "Чеки", icon: "i-receipts" },
 ];
 
-let current = { name: "list", arg: null };
+function badgeFor(route, state) {
+  const now = M.today();
+  if (route === "list") return state.list.filter((e) => !e.done && !e.deleted).length;
+  if (route === "stock") return state.stock.filter((i) => !i.deleted && M.isBurning(i, now)).length;
+  return 0;
+}
 
 /* Nothing catches what happens before this line, so it runs before anything else
    that can throw — including the demo seed below. */
@@ -96,6 +92,7 @@ whenSaveFails((ok, state) => {
 
   log.fail("хранилище", "данные только в памяти", { очередь: state.queue.length, подключено: configured });
 });
+
 log.info("приложение", "запуск", { экран: location.hash || "#list", офлайн: !navigator.onLine });
 
 /* First run has nothing to judge the interface by, so seed the demo once —
@@ -110,317 +107,21 @@ log.info("приложение", "запуск", { экран: location.hash || 
     // than making the person choose between their data and a working sync.
     replace(stripDemo(s), "demo.strip");
   }
-  setCurrency(get().currency, { rates: get().rates, show: get().showCurrencies ?? [] });
 }
 
-function parseHash() {
-  const raw = location.hash.slice(1) || "list";
-  const [name, arg] = raw.split("/");
-  return SCREENS[name] ? { name, arg: arg ?? null } : { name: "list", arg: null };
-}
+const applyCurrency = (state) =>
+  setCurrency(state.currency, { rates: state.rates, show: state.showCurrencies ?? [] });
 
-function badgeFor(route, state) {
-  const now = M.today();
-  if (route === "list") return state.list.filter((e) => !e.done && !e.deleted).length;
-  if (route === "stock") return state.stock.filter((i) => !i.deleted && M.isBurning(i, now)).length;
-  if (route === "recipes") return 0;
-  return 0;
-}
-
-function renderNav(state) {
-  $("[data-tabs]").innerHTML = NAV.map((entry) => {
-    const n = badgeFor(entry.route, state);
-    const on = current.name === entry.route;
-    const hint = n > 0 ? `${entry.label} · ${n}` : entry.label;
-    return html`<a class="tab" href="#${entry.route}" data-route="${entry.route}" title="${hint}"${raw(on ? ' aria-current="page"' : "")}>
-      ${raw(icon(entry.icon))}
-      <span class="tab-label">${entry.label}</span>
-      ${raw(n > 0 ? `<span class="tab-badge">${n}</span>` : "")}
-    </a>`;
-  }).join("");
-
-  const settingsTab = $('[data-route="settings"]');
-  if (settingsTab) settingsTab.toggleAttribute("aria-current", current.name === "settings");
-}
-
-function renderSyncStatus() {
-  const el = $("[data-sync-status]");
-  const state = get();
-  const pending = state.queue.length;
-
-  // The strip is the one thing on screen that always says how the exchange is
-  // doing, so it is also where the exchange is started. It used to be a label,
-  // and the button for it lived two panes deep in the settings.
-  if (!gh.isConfigured()) {
-    el.hidden = false;
-    el.dataset.tone = "idle";
-    el.dataset.act = "go";
-    el.dataset.to = "settings";
-    el.disabled = false;
-    el.textContent = "Репозиторий не подключён";
-    el.title = "Открыть настройки";
-    return;
-  }
-
-  el.hidden = false;
-  el.dataset.act = "sync";
-  delete el.dataset.to;
-  el.disabled = syncing();
-  el.title = syncing() ? "Идёт обмен" : "Синхронизировать сейчас";
-
-  if (syncing()) {
-    el.dataset.tone = "busy";
-    el.textContent = "Синхронизация…";
-  } else if (!navigator.onLine) {
-    el.dataset.tone = "offline";
-    el.textContent = pending ? `Офлайн · ${pending} правок ждут` : "Офлайн";
-  } else if (pending) {
-    el.dataset.tone = "busy";
-    el.textContent = `${pending} правок не отправлено`;
-  } else {
-    el.dataset.tone = "idle";
-    el.textContent = state.syncedAt
-      ? `Синхронизировано в ${new Date(state.syncedAt).toLocaleTimeString("ru", { hour: "2-digit", minute: "2-digit" })}`
-      : "Готово к синхронизации";
-  }
-}
-
-let mounted = null;
-let previous = null;
-let previousArg = null;
-
-function render() {
-  const state = get();
-  const screen = SCREENS[current.name];
-  const stage = $("[data-stage]");
-
-  // leave() tears down screen-local state, so it must fire only on a real
-  // departure — calling it on every re-render resets wizards mid-flow.
-  if (mounted && mounted !== current.name) SCREENS[mounted].leave?.();
-  mounted = current.name;
-
-  // Every tap rebuilds the screen, and the scroller dies with it. Ticking five
-  // items in the meat aisle meant scrolling back five times, one-handed, with a
-  // trolley — so the position is carried across a re-render of the same screen.
-  const sameScreen = previous === current.name && previousArg === current.arg;
-  const keep = sameScreen ? [...stage.querySelectorAll(".body, .table, .feed, .inspector")].map((el) => el.scrollTop) : null;
-
-  // Every tap rebuilds the screen from scratch. That is fine at fifty items and
-  // not fine at five hundred, and the difference is invisible until someone is
-  // standing in a queue — so the slow ones say so in the journal.
-  const stop = log.time("отрисовка", current.name, { warnAfter: 60 });
-
-  try {
-    stage.innerHTML = screen.render(state, current.arg);
-  } catch (err) {
-    // A screen that throws used to leave a blank app with no way back.
-    log.fail("отрисовка", `${current.name} не собрался`, err?.stack?.slice(0, 240) ?? err?.message);
-    stage.innerHTML = html`<div class="pane pane--alarm">
-      <h2 class="pane-title">Экран не собрался</h2>
-      <p class="pane-note">${err?.message ?? "неизвестная ошибка"}</p>
-      <p class="pane-note">Данные целы. Запись есть в журнале: Настройки → Журнал.</p>
-      <a class="btn btn--ghost btn--sm" href="#list">К списку</a>
-    </div>`;
-    stop({ ошибка: true });
-    previous = current.name;
-    previousArg = current.arg;
-    return;
-  }
-
-  if (keep) {
-    [...stage.querySelectorAll(".body, .table, .feed, .inspector")].forEach((el, i) => {
-      if (keep[i]) el.scrollTop = keep[i];
-    });
-  }
-
-  try {
-    screen.mount?.(stage, state, current.arg);
-  } catch (err) {
-    log.fail("отрисовка", `${current.name}: mount упал`, err?.message);
-  }
-
-  stop({ строк: stage.querySelectorAll(".row, .trow, .card").length });
-  previous = current.name;
-  previousArg = current.arg;
-
-  renderNav(state);
-  renderSyncStatus();
-  document.title = screen.title ? `${screen.title(state, current.arg)} · Кухня` : "Кухня";
-}
-
-export function go(route) {
-  location.hash = route;
-}
-
-window.addEventListener("hashchange", () => {
-  current = parseHash();
-  render();
-});
-
-subscribe(() => {
-  setCurrency(get().currency, { rates: get().rates, show: get().showCurrencies ?? [] });
-  render();
-});
-/* The queue has to leave on its own: the shop is the last place anyone opens
-   settings, and until it does, every per-entry merge runs empty. */
-function tryAutoSync() {
-  const started = autoSync(get());
-  if (started) started.then(renderSyncStatus);
-  renderSyncStatus();
-}
-
-window.addEventListener("online", tryAutoSync);
-window.addEventListener("offline", renderSyncStatus);
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") tryAutoSync();
-});
-
-/* Phone and desktop are different structures, not the same one restyled,
-   so crossing the breakpoint has to re-render rather than reflow. */
-wide.addEventListener("change", () => render());
-
-document.addEventListener("keydown", (e) => {
-  // Escape means "get me out of this" wherever it is pressed — including out of
-  // a field being edited. Every other key belongs to whatever has focus.
-  if (e.target?.closest?.("input, textarea, select") && e.key !== "Escape") return;
-  SCREENS[current.name].keys?.(e, get());
-});
-
-/* One delegated listener for every screen action. */
-document.addEventListener("click", (e) => {
-  const el = e.target.closest("[data-act]");
-  if (!el || el.matches("input[type=file]")) return;
-
-  const screen = SCREENS[current.name];
-  const handler = screen.actions?.[el.dataset.act] ?? GLOBAL_ACTIONS[el.dataset.act];
-  if (!handler) return;
-
-  e.preventDefault();
-  handler(el, get());
-});
-
-/* Editing in place: a second click on something already selected opens it, the
-   way a filename does. Separate from the click above so a single click keeps
-   meaning "select" and nothing opens by accident. */
-document.addEventListener("dblclick", (e) => {
-  const el = e.target.closest("[data-act-dbl]");
-  if (!el) return;
-
-  const handler = SCREENS[current.name].actions?.[el.dataset.actDbl];
-  if (!handler) return;
-
-  e.preventDefault();
-  handler(el, get());
-});
-
-/* Leaving a field is an answer too. Without this, clicking away from an open
-   editor would throw the typing away on the next render. */
-document.addEventListener("focusout", (e) => {
-  const el = e.target.closest("[data-act-blur]");
-  if (!el) return;
-  SCREENS[current.name].actions?.[el.dataset.actBlur]?.(el, get());
-});
-
-document.addEventListener("change", (e) => {
-  const file = e.target.closest("input[type=file][data-act]");
-  if (file) {
-    SCREENS[current.name].actions?.[file.dataset.act]?.(file, get());
-    return;
-  }
-
-  /* Pickers answer on change, not on click: a date or a dropdown has no useful
-     value at the moment it is opened. */
-  const el = e.target.closest("[data-act-change]");
-  if (!el) return;
-  SCREENS[current.name].actions?.[el.dataset.actChange]?.(el, get());
-});
-
-document.addEventListener("submit", (e) => {
-  const form = e.target.closest("[data-act-submit]");
-  if (!form) return;
-
-  const screen = SCREENS[current.name];
-  const handler = screen.actions?.[form.dataset.actSubmit];
-  if (!handler) return;
-
-  e.preventDefault();
-  handler(form, get());
-});
-
-export async function runSync() {
-  if (!gh.isConfigured()) {
-    toast("Сначала подключи репозиторий данных в настройках");
-    go("settings");
-    return;
-  }
-
-  renderSyncStatus();
-  try {
-    const report = await sync();
-    // "Синхронизировано · 8 разделов" was said even when all eight were identical.
-    toast(
-      report.pushed === 0
-        ? "Всё уже совпадает — писать было нечего"
-        : `Отправлено ${report.pushed} ${report.pushed === 1 ? "раздел" : "разделов"}${report.skipped ? ` · ${report.skipped} без изменений` : ""}`
-    );
-  } catch (err) {
-    toast(`Синхронизация не прошла: ${err.message}`, "alarm");
-  } finally {
-    renderSyncStatus();
-  }
-}
-
-/* Sidebar width is a preference, so it outlives the session. */
-const NAV_KEY = "kitchen.nav.mini";
-
-function applyNavMode(mini) {
-  $(".app").dataset.nav = mini ? "mini" : "full";
-  const rail = $(".rail");
-  if (!rail) return;
-  rail.setAttribute("aria-expanded", String(!mini));
-  rail.setAttribute("aria-label", mini ? "Развернуть боковую панель" : "Свернуть боковую панель");
-}
-
-const GLOBAL_ACTIONS = {
-  back: () => history.back(),
-  go: (el) => go(el.dataset.to),
-  sync: () => runSync(),
-  /* Nothing can be written locally, so the repository is the only place the
-     edits can still go. Not a normal sync button: this one is the exit. */
-  rescue: () => runSync(),
-  rail: () => {
-    const mini = localStorage.getItem(NAV_KEY) !== "1";
-    localStorage.setItem(NAV_KEY, mini ? "1" : "0");
-    applyNavMode(mini);
-  },
-};
-
-applyNavMode(localStorage.getItem(NAV_KEY) === "1");
+applyCurrency(get());
 $(".app").dataset.feed = localStorage.getItem("kitchen.feed.off") === "1" ? "off" : "on";
 
-current = parseHash();
 mountIcons();
-render();
+boot({
+  screens: SCREENS,
+  nav: NAV,
+  home: "list",
+  badge: badgeFor,
+  afterRender: applyCurrency,
+});
 
-/**
- * Register the worker and say something when a new build lands. A silent update
- * that only applies on the next cold start means the person keeps using the
- * version that had the bug they just reported.
- */
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker
-    .register("./sw.js")
-    .then((reg) => {
-      reg.addEventListener("updatefound", () => {
-        const fresh = reg.installing;
-        if (!fresh) return;
-
-        fresh.addEventListener("statechange", () => {
-          if (fresh.state === "installed" && navigator.serviceWorker.controller) {
-            toast("Обновление готово — перезагрузи страницу");
-          }
-        });
-      });
-    })
-    .catch(() => {});
-}
+if (!navigator.onLine) toast("Офлайн — правки подождут", "offline");

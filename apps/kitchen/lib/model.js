@@ -1,16 +1,16 @@
 // Domain logic: normalization, shelf life, consumption forecast, list assembly.
 // Pure functions only — no DOM, no storage. Everything here is testable in isolation.
+//
+// Dates and "how much is left" moved to core/time.js the moment a second app
+// needed to count down a warranty. Re-exported here so the kitchen's own screens
+// keep asking one module what a product's state is.
 
-export const DAY = 86400000;
+export { DAY, today, daysBetween, plural, expiryOf, freshness, isBurning, sortByUrgency } from "../../../core/time.js";
 
-export function today(now = Date.now()) {
-  const d = new Date(now);
-  return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
-}
+import { today, daysBetween, plural, freshness, isBurning, sortByUrgency, expiryLabel as coreLabel } from "../../../core/time.js";
 
-export function daysBetween(from, to) {
-  return Math.round((to - from) / DAY);
-}
+/** Food gets exact days: «325 дней» is a real answer for rice, «11 месяцев» is a shrug. */
+export const expiryLabel = (item, now = today()) => coreLabel(item, now);
 
 /** Receipt line -> product, in three escalating steps. Confidence drives the review queue. */
 export function normalize(rawLine, { rules = {}, synonyms = [], junk = [] } = {}) {
@@ -68,60 +68,6 @@ export function shelfLife(product, shelf, { opened = false, zone } = {}) {
   const entry = matches.find((e) => !zone || e.zone === zone) ?? matches[0];
   const days = opened && entry.opened ? entry.opened : entry.closed;
   return { days, zone: entry.zone };
-}
-
-export function expiryOf(item) {
-  if (item.expires) return item.expires;
-  if (!item.boughtAt || item.shelfDays == null) return null;
-  return item.boughtAt + item.shelfDays * DAY;
-}
-
-/**
- * The full run the meter measures against.
- *
- * Usually the reference table's figure. But a date read off the packet is the
- * better authority and can be set without the product being in the table at
- * all, so the span from purchase to that date stands in — otherwise a hand-set
- * expiry would show its days and no bar.
- */
-function span(item) {
-  if (item.shelfDays) return item.shelfDays;
-  if (item.expires && item.boughtAt) return Math.max(1, daysBetween(item.boughtAt, item.expires));
-  return null;
-}
-
-/** Freshness as a 0..1 share of shelf life left, plus the tone the UI paints it in. */
-export function freshness(item, now = today()) {
-  const expires = expiryOf(item);
-  const total = span(item);
-  if (expires == null || !total) return { left: null, share: null, tone: "calm" };
-
-  const left = daysBetween(now, expires);
-  const share = Math.max(0, Math.min(1, left / total));
-  const tone = left <= 1 ? "bad" : left <= 3 ? "warn" : "calm";
-  return { left, share, tone };
-}
-
-export function isBurning(item, now = today()) {
-  const { left } = freshness(item, now);
-  return left != null && left <= 1;
-}
-
-export function expiryLabel(item, now = today()) {
-  const { left } = freshness(item, now);
-  if (left == null) return "срок неизвестен";
-  if (left < 0) return "просрочено";
-  if (left === 0) return "сегодня последний день";
-  if (left === 1) return "до завтра";
-  return `${left} ${plural(left, "день", "дня", "дней")}`;
-}
-
-export function plural(n, one, few, many) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
-  return many;
 }
 
 /**
@@ -234,14 +180,3 @@ export function collapseSame(entries, now = today()) {
   });
 }
 
-/** Sort stock so what is about to spoil is impossible to miss. */
-export function sortByUrgency(items, now = today()) {
-  return [...items].sort((a, b) => {
-    const la = freshness(a, now).left;
-    const lb = freshness(b, now).left;
-    if (la == null && lb == null) return a.product.localeCompare(b.product, "ru");
-    if (la == null) return 1;
-    if (lb == null) return -1;
-    return la - lb;
-  });
-}

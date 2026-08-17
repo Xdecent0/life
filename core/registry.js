@@ -30,9 +30,14 @@ export const APPS = [
     key: "things",
     name: "Вещи",
     what: "Техника, гарантии, где что лежит",
-    href: null,
+    href: "../apps/things/",
     icon: "i-shelf",
-    ready: false,
+    ready: true,
+    count: (state) => {
+      const alive = (state.things ?? []).filter((t) => !t.deleted && !t.gone);
+      const warranty = alive.filter((t) => t.warrantyUntil).length;
+      return [alive.length ? `${alive.length} вещей` : null, warranty ? `${warranty} с гарантией` : null].filter(Boolean).join(" · ");
+    },
   },
   {
     key: "clean",
