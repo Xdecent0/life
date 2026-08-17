@@ -163,6 +163,111 @@ export function warranties(things, now = today(), { rich = 1000 } = {}) {
   ].filter((g) => g.rows.length);
 }
 
+/* ---------- сколько служат ---------- */
+
+/**
+ * Вещи, которых больше нет, — не мусор в файле, а единственный источник правды
+ * о том, сколько такое живёт.
+ *
+ * «Больше нет» ставится с самого начала и пишет `goneAt`; вместе с `куплено`
+ * это готовый срок службы. Приложение хранило обе даты и не задавало им ни
+ * одного вопроса — при том что вопрос всегда один и тот же: чинить или менять.
+ */
+
+/** Сколько дней вещь у тебя: до ухода, а если ещё здесь — до сегодня. */
+export function ageOf(thing, now = today()) {
+  if (!thing?.boughtAt) return null;
+  const end = thing.gone && thing.goneAt ? thing.goneAt : now;
+  const days = daysBetween(thing.boughtAt, end);
+  return days >= 0 ? days : null;
+}
+
+/** Во сколько обходится день владения — единственная честная цена сравнения. */
+export function perDay(thing, now = today()) {
+  const days = ageOf(thing, now);
+  const price = Number(thing?.price) || 0;
+  if (!price || !days) return null;
+  return price / days;
+}
+
+const median = (nums) => {
+  if (!nums.length) return null;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+};
+
+/** Две ушедшие вещи — это уже ряд; одна — это история одной вещи. */
+export const SERVED_FLOOR = 2;
+
+/**
+ * Сколько прожили ушедшие вещи каждого вида.
+ *
+ * Медиана, а не среднее: одна вещь, выброшенная через неделю после покупки,
+ * не должна утверждать, что такие живут полгода.
+ */
+export function lifespans(things, kinds = [], now = today()) {
+  const out = new Map();
+
+  for (const thing of things) {
+    if (thing.deleted || !thing.gone) continue;
+    const days = ageOf(thing, now);
+    if (days == null) continue;
+
+    const kind = kindOf(thing, kinds).name;
+    if (!out.has(kind)) out.set(kind, { kind, days: [], names: [] });
+    out.get(kind).days.push(days);
+    out.get(kind).names.push(thing.name);
+  }
+
+  return new Map([...out].map(([kind, g]) => [kind, {
+    kind,
+    times: g.days.length,
+    median: median(g.days),
+    names: g.names,
+  }]));
+}
+
+/**
+ * Что прошлые такие вещи говорят про эту, или ничего.
+ *
+ * Молчит, пока ушедших меньше двух: на одной вещи это не ряд, а совпадение, и
+ * фраза «такие живут два года» из одного примера — выдумка с точностью до
+ * первого попавшегося случая.
+ */
+export function served(thing, things, kinds = [], now = today()) {
+  const kind = kindOf(thing, kinds).name;
+  const row = lifespans(things, kinds, now).get(kind);
+  if (!row || row.times < SERVED_FLOOR) return null;
+
+  const age = ageOf(thing, now);
+  // «1.3 год» — не по-русски: с дробью всегда «года», и запятая, а не точка.
+  const years = (d) => {
+    if (d < 365) return `${d} ${plural(d, "день", "дня", "дней")}`;
+    const n = d / 365;
+    const whole = Math.round(n * 10) % 10 === 0;
+    return whole
+      ? `${Math.round(n)} ${plural(Math.round(n), "год", "года", "лет")}`
+      : `${n.toFixed(1).replace(".", ",")} года`;
+  };
+
+  const said = `Прошлые «${kind}» уходили через ${years(row.median)} — по ${row.times} ${plural(row.times, "вещи", "вещам", "вещам")}`;
+  if (age == null) return { said, over: null, median: row.median, times: row.times };
+
+  const over = age - row.median;
+  return {
+    said,
+    over,
+    median: row.median,
+    times: row.times,
+    // Прожила дольше ряда — не «пора менять», а «ремонт уже не обидно»:
+    // решение всё равно за человеком, приложение только показывает ряд.
+    verdict: over >= 0
+      ? `Эта служит дольше — ${years(age)}`
+      : `Этой ${years(age)}, до ряда ещё ${years(-over)}`,
+  };
+}
+
 /** Сколько денег стоит за живыми гарантиями — то, что можно ещё вернуть. */
 export const covered = (things, now = today()) =>
   worth(things.filter((t) => t.warrantyUntil && daysBetween(now, t.warrantyUntil) >= 0));

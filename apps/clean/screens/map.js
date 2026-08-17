@@ -161,13 +161,12 @@ export default {
     done(el, state) {
       const spot = M.alive(state).find((s) => s.id === el.dataset.id);
       if (!spot) return;
-      const was = spot.lastDone;
+      const was = M.doneSnapshot(spot);
 
       commit("clean.done", (s) => {
         const target = s.spots.find((x) => x.id === spot.id);
         if (!target) return null;
-        target.lastDone = M.today();
-        target.at = Date.now();
+        M.markDone(target);
         return { kind: "spots", id: target.id };
       });
 
@@ -176,8 +175,7 @@ export default {
         undo: () => commit("clean.undone", (s) => {
           const target = s.spots.find((x) => x.id === spot.id);
           if (!target) return null;
-          target.lastDone = was;
-          target.at = Date.now();
+          M.restoreDone(target, was);
           return { kind: "spots", id: target.id };
         }),
       });

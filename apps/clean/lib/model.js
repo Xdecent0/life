@@ -158,6 +158,122 @@ export function dueEverywhere(state, now = today()) {
     .filter(Boolean);
 }
 
+/* ---------- как выходит на самом деле ---------- */
+
+/**
+ * Отметка «убрано» переписывала дату и выбрасывала предыдущую.
+ *
+ * Приложение спрашивало «как часто надо» и никогда — «как часто выходит», хотя
+ * второй ответ и есть настоящий: цикл в карточке это догадка, посеянная самим
+ * приложением, а стопка дат — факт. Поэтому теперь каждая отметка добавляет
+ * день в список, а не затирает единственное поле.
+ *
+ * Двенадцать последних: этого хватает на ритм и не превращает файл в архив
+ * уборок за годы, который потом ездит в каждом круге синка.
+ */
+export const DONE_KEPT = 12;
+
+/** Три отметки — это два промежутка. По одному промежутку ритма не видно. */
+export const RHYTHM_FLOOR = 3;
+
+/** Ближе трети — не спор: цикл угадан достаточно, и трогать его незачем. */
+export const DRIFT_SHARE = 0.34;
+
+/**
+ * Одна запись отметки на все кнопки.
+ *
+ * Отмечают в четырёх местах — карта, карточка, план на вечер и пульт. Пока
+ * каждая писала своё, любая новая забыла бы про стопку дат, и ритм тихо
+ * потерял бы часть событий.
+ */
+export function markDone(spot, at = today()) {
+  const log = (spot.done ?? []).filter((d) => d !== at);
+  spot.lastDone = at;
+  spot.done = [...log, at].sort((a, b) => a - b).slice(-DONE_KEPT);
+  spot.at = Date.now();
+  return spot;
+}
+
+/** Что было до отметки — чтобы отмена возвращала и дату, и стопку. */
+export const doneSnapshot = (spot) => ({ lastDone: spot.lastDone ?? null, done: [...(spot.done ?? [])] });
+
+export function restoreDone(spot, snap) {
+  spot.lastDone = snap.lastDone;
+  spot.done = [...snap.done];
+  spot.at = Date.now();
+  return spot;
+}
+
+const median = (nums) => {
+  if (!nums.length) return null;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+};
+
+/**
+ * Фактический ритм: медиана промежутков между уборками.
+ *
+ * Медиана, а не среднее: одна неделя отпуска не должна объявлять, что пол моют
+ * раз в месяц.
+ */
+export function rhythm(spot) {
+  const log = spot.done ?? [];
+  if (log.length < RHYTHM_FLOOR) return null;
+
+  const sorted = [...log].sort((a, b) => a - b);
+  const gaps = sorted.slice(1).map((d, i) => daysBetween(sorted[i], d)).filter((g) => g > 0);
+  return gaps.length ? median(gaps) : null;
+}
+
+/**
+ * Цикл разошёлся с жизнью — и это вопрос к циклу, а не к человеку.
+ *
+ * Цифра `every` пришла из посева: «плита раз в три дня» приложение придумало
+ * само. Если полгода выходит раз в шесть — правильный ответ поменять число, а
+ * не краснеть через день. Обратное тоже бывает: моют чаще, чем записано, и
+ * тогда «пора» приходит с опозданием.
+ */
+export function drift(spot) {
+  const real = rhythm(spot);
+  if (real == null || !spot.every) return null;
+
+  const off = real - spot.every;
+  if (Math.abs(off) < Math.max(1, Math.round(spot.every * DRIFT_SHARE))) return null;
+
+  return {
+    real,
+    every: spot.every,
+    off,
+    said: off > 0
+      ? `записано раз в ${spot.every}, выходит раз в ${real}`
+      : `записано раз в ${spot.every}, а делаешь чаще — раз в ${real}`,
+    fix: off > 0
+      ? "цикл, который не выдерживается, каждый раз врёт про «пора»"
+      : "цикл длиннее, чем нужно: «пора» приходит, когда уже убрано",
+  };
+}
+
+/** Все поверхности, где цикл разошёлся с фактом. */
+export const drifting = (state) =>
+  alive(state)
+    .map((spot) => ({ spot, drift: drift(spot) }))
+    .filter((r) => r.drift)
+    .sort((a, b) => Math.abs(b.drift.off) - Math.abs(a.drift.off));
+
+/**
+ * На сколько циклов просрочено прямо сейчас.
+ *
+ * Это видно и без истории, с первого дня: просрочка в два цикла — уже не «руки
+ * не дошли», а либо неверный цикл, либо задача, которую на самом деле никто не
+ * собирается делать.
+ */
+export function overdueCycles(spot, now = today()) {
+  if (!spot.lastDone || !spot.every) return 0;
+  const left = daysBetween(now, spot.lastDone + spot.every * 86400000);
+  return left >= 0 ? 0 : Math.floor(-left / spot.every);
+}
+
 /* ---------- план на вечер ---------- */
 
 /**

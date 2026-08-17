@@ -1911,3 +1911,126 @@ test("каналы: без проверки — не зелёное, и таки
   // Снимка нет — пустой список, а не падение.
   assert.deepEqual(PJ.channelRows({}), []);
 });
+
+/* ------------------------------------------------------------- сколько служат */
+
+test("вещи: ряд по ушедшим — медиана, и молчание пока ряда нет", () => {
+  const now = Date.UTC(2026, 7, 15);
+  const d = (n) => now - n * DAY;
+  const kinds = [{ order: 1, name: "техника", items: ["наушник"] }, { order: 9, name: "прочее", items: [] }];
+
+  const one = [
+    { id: "1", name: "Наушники старые", kind: "техника", gone: true, boughtAt: d(400), goneAt: d(40) },
+    { id: "2", name: "Наушники", kind: "техника", boughtAt: d(100) },
+  ];
+  // Одна ушедшая вещь — история одной вещи, а не ряд: молчим.
+  assert.equal(TH.served(one[1], one, kinds, now), null);
+
+  const many = [
+    ...one,
+    { id: "3", name: "Наушники дешёвые", kind: "техника", gone: true, boughtAt: d(300), goneAt: d(100) },
+    // Выброшенные через неделю не должны утянуть ряд: медиана, а не среднее.
+    { id: "4", name: "Наушники бракованные", kind: "техника", gone: true, boughtAt: d(207), goneAt: d(200) },
+    // Удалённая запись — не ушедшая вещь.
+    { id: "5", name: "Наушники", kind: "техника", deleted: true, gone: true, boughtAt: d(999), goneAt: d(1) },
+  ];
+
+  const s = TH.served(many[1], many, kinds, now);
+  assert.equal(s.times, 3);
+  assert.equal(s.median, 200);   // 360, 200, 7 → медиана 200
+  assert.match(s.verdict, /до ряда ещё/);
+
+  // Вещь без даты покупки ничего не считает и не притворяется.
+  assert.equal(TH.ageOf({ name: "х" }, now), null);
+  assert.equal(TH.perDay({ price: 1000 }, now), null);
+  assert.equal(Math.round(TH.perDay({ price: 1000, boughtAt: d(100) }, now)), 10);
+});
+
+/* ------------------------------------------------------------- ритм уборки */
+
+test("уборка: отметка кладёт день в стопку, а не затирает единственное поле", async () => {
+  const CLEAN = (await import("../apps/clean/lib/model.js"));
+  const now = Date.UTC(2026, 7, 15);
+
+  const spot = { id: "s1", name: "пол", every: 7, lastDone: null, done: [] };
+  CLEAN.markDone(spot, now - 14 * DAY);
+  CLEAN.markDone(spot, now - 7 * DAY);
+  const was = CLEAN.doneSnapshot(spot);
+  CLEAN.markDone(spot, now);
+
+  assert.deepEqual(spot.done, [now - 14 * DAY, now - 7 * DAY, now]);
+  assert.equal(spot.lastDone, now);
+
+  // Дважды в один день — одна отметка, иначе ритм посчитал бы промежуток в ноль.
+  CLEAN.markDone(spot, now);
+  assert.equal(spot.done.length, 3);
+
+  // Отмена возвращает и дату, и стопку — иначе ритм считался бы по отменённому.
+  CLEAN.restoreDone(spot, was);
+  assert.deepEqual(spot.done, [now - 14 * DAY, now - 7 * DAY]);
+  assert.equal(spot.lastDone, now - 7 * DAY);
+
+  // Стопка ограничена: файл не превращается в архив уборок за годы.
+  const long = { id: "s2", name: "пол", every: 2, done: [] };
+  for (let i = 30; i > 0; i--) CLEAN.markDone(long, now - i * DAY);
+  assert.equal(long.done.length, CLEAN.DONE_KEPT);
+});
+
+test("уборка: цикл спорит с фактом только когда расхождение заметное", async () => {
+  const CLEAN = (await import("../apps/clean/lib/model.js"));
+  const now = Date.UTC(2026, 7, 15);
+  const at = (n) => now - n * DAY;
+
+  // Два промежутка — уже ритм, один — ещё нет.
+  assert.equal(CLEAN.rhythm({ done: [at(6), at(0)] }), null);
+  assert.equal(CLEAN.rhythm({ done: [at(12), at(6), at(0)] }), 6);
+
+  // Записано раз в 3, выходит раз в 6 — цикл врёт про «пора» каждый раз.
+  const off = CLEAN.drift({ every: 3, done: [at(18), at(12), at(6), at(0)] });
+  assert.equal(off.real, 6);
+  assert.match(off.said, /выходит раз в 6/);
+
+  // Раз в 7 против фактических 8 — в пределах трети, спорить не о чем.
+  assert.equal(CLEAN.drift({ every: 7, done: [at(24), at(16), at(8), at(0)] }), null);
+
+  // Просрочка в циклах считается и без всякой истории, с первого дня.
+  assert.equal(CLEAN.overdueCycles({ every: 4, lastDone: at(13) }, now), 2);
+  assert.equal(CLEAN.overdueCycles({ every: 4, lastDone: at(3) }, now), 0);
+  assert.equal(CLEAN.overdueCycles({ every: 4, lastDone: null }, now), 0);
+});
+
+test("уборка: отметка с пульта пишет то же, что отметка в приложении", async () => {
+  const CLEAN = (await import("../apps/clean/lib/model.js"));
+  const { APPS } = await import("../core/registry.js");
+  const clean = APPS.find((a) => a.key === "clean");
+
+  // Отмечают в четырёх местах; разойдись они — ритм тихо потерял бы события.
+  const viaApp = { id: "s1", name: "пол", every: 7, lastDone: null, done: [] };
+  const viaHub = { id: "s1", name: "пол", every: 7, lastDone: null, done: [] };
+
+  CLEAN.markDone(viaApp);
+  clean.apply({ spots: [viaHub] }, { kind: "spot", id: "s1" });
+
+  assert.deepEqual(viaHub.done, viaApp.done);
+  assert.equal(viaHub.lastDone, viaApp.lastDone);
+});
+
+test("вещи: годы дробью говорятся по-русски", () => {
+  const now = Date.UTC(2026, 7, 15);
+  const d = (n) => now - n * DAY;
+  const kinds = [{ order: 1, name: "техника", items: [] }];
+  const rows = [
+    { id: "a", name: "Х", kind: "техника", boughtAt: d(10) },
+    { id: "b", name: "Y", kind: "техника", gone: true, boughtAt: d(1000), goneAt: d(510) },
+    { id: "c", name: "Z", kind: "техника", gone: true, boughtAt: d(1100), goneAt: d(610) },
+  ];
+  // 490 дней — «1,3 года», а не «1.3 год».
+  assert.match(TH.served(rows[0], rows, kinds, now).said, /1,3 года/);
+
+  const round = [
+    { id: "a", name: "Х", kind: "техника", boughtAt: d(10) },
+    { id: "b", name: "Y", kind: "техника", gone: true, boughtAt: d(1000), goneAt: d(270) },
+    { id: "c", name: "Z", kind: "техника", gone: true, boughtAt: d(1100), goneAt: d(370) },
+  ];
+  assert.match(TH.served(round[0], round, kinds, now).said, /2 года/);
+});

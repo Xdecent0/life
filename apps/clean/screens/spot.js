@@ -58,6 +58,8 @@ export default {
           <p class="prose prose--muted">Цикл — это когда напомнить, а не закон. Пол на кухне пачкается быстрее, чем в комнате, и приложение не спорит с тем, как у тебя.</p>
         </section>
 
+        ${raw(factPane(spot, now))}
+
         <section class="pane">
           <div class="label">Где и что</div>
           <form class="stack stack--tight" data-act-submit="save">
@@ -87,17 +89,37 @@ export default {
     done(_el, state) {
       const spot = find(state, currentId());
       if (!spot) return;
-      const was = spot.lastDone;
-      patch((s) => { s.lastDone = M.today(); });
+      const was = M.doneSnapshot(spot);
+      patch((s) => M.markDone(s));
       toast(`${spot.name} — убрано`, "calm", {
-        undo: () => patch((s) => { s.lastDone = was; }),
+        undo: () => patch((s) => M.restoreDone(s, was)),
       });
     },
 
-    /* Отмечено по ошибке. Не «удалить», а «этого не было» — запись остаётся. */
-    forget() {
-      patch((s) => { s.lastDone = null; });
-      toast("Отметка снята");
+    /* Отмечено по ошибке. Не «удалить», а «этого не было» — запись остаётся.
+       Последний день уходит и из стопки: ритм не должен считаться по уборке,
+       которой не было. */
+    forget(_el, state) {
+      const spot = find(state, currentId());
+      const was = spot ? M.doneSnapshot(spot) : null;
+
+      patch((s) => {
+        s.done = (s.done ?? []).filter((d) => d !== s.lastDone);
+        s.lastDone = s.done.length ? s.done[s.done.length - 1] : null;
+      });
+
+      toast("Отметка снята", "calm", {
+        undo: was ? () => patch((s) => M.restoreDone(s, was)) : undefined,
+      });
+    },
+
+    /** Поставить цикл по факту — кнопка есть только когда факту есть что сказать. */
+    fitCycle(_el, state) {
+      const spot = find(state, currentId());
+      const d = spot ? M.drift(spot) : null;
+      if (!d) return;
+      patch((s) => { s.every = d.real; });
+      toast(`${spot.name} — раз в ${d.real} ${M.plural(d.real, "день", "дня", "дней")}`);
     },
 
     every(el) {
@@ -142,6 +164,48 @@ export default {
     },
   },
 };
+
+/**
+ * Как выходит на самом деле.
+ *
+ * Цикл в карточке — догадка, которую приложение посеяло само; стопка отметок —
+ * факт. Пока фактов меньше трёх, здесь честно написано, чего не хватает: два
+ * промежутка это ещё не ритм, и притворяться, что ритм уже есть, значит
+ * предлагать поменять число на основании одной случайной недели.
+ *
+ * Просрочка в два цикла говорит и без истории, с первого дня: это уже не «руки
+ * не дошли», а либо неверный цикл, либо задача, которую никто не собирается
+ * делать. Второе — тоже ответ, и лучше сказать его вслух.
+ */
+function factPane(spot, now) {
+  const real = M.rhythm(spot);
+  const d = M.drift(spot);
+  const over = M.overdueCycles(spot, now);
+  const marks = (spot.done ?? []).length;
+
+  if (!real && !over) {
+    return marks
+      ? html`<section class="pane">
+          <div class="label">Как выходит</div>
+          <p class="prose prose--muted">Отметок пока ${marks} из ${M.RHYTHM_FLOOR}. Ритм посчитается, когда их станет достаточно: по одному промежутку его не видно.</p>
+        </section>`
+      : "";
+  }
+
+  return html`<section class="pane ${d || over >= 2 ? "pane--alarm" : ""}">
+    <div class="head-row">
+      <div class="label">Как выходит</div>
+      ${raw(real ? `<span class="tdim num">раз в ${real} ${esc(M.plural(real, "день", "дня", "дней"))}</span>` : "")}
+    </div>
+
+    ${raw(d ? `<p class="prose">${esc(d.said)}.<span class="dim"> ${esc(d.fix)}</span></p>
+      <button class="btn btn--ghost btn--sm" type="button" data-act="fitCycle">Поставить раз в ${d.real}</button>` : "")}
+
+    ${raw(!d && real ? `<p class="prose prose--muted">Цикл и факт сходятся — менять нечего.</p>` : "")}
+
+    ${raw(over >= 2 ? `<p class="prose">Просрочено на ${over} ${esc(M.plural(over, "цикл", "цикла", "циклов"))}.<span class="dim"> Столько подряд — это не «руки не дошли»: либо цикл не тот, либо это не твоя задача.</span></p>` : "")}
+  </section>`;
+}
 
 /**
  * Комната целиком, рядом с одной её поверхностью.

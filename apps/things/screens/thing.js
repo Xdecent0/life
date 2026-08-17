@@ -79,7 +79,9 @@ export default {
             <button class="btn btn--ghost btn--sm" type="submit">Сохранить</button>
           </form>
           ${raw(thing.price ? `<p class="prose prose--muted">${esc(fmtMoney(thing.price))} ${fmtAlso(thing.price, thing.boughtAt ?? Date.now())}</p>` : "")}
-        </section>`;
+        </section>
+
+        ${raw(servedPane(state, thing))}`;
 
     const foot = html`<div class="foot foot--wrap">
       <button class="btn btn--grow" type="button" data-act="gone">${thing.gone ? "Вернулась" : "Больше нет"}</button>
@@ -162,6 +164,32 @@ export default {
     },
   },
 };
+
+/**
+ * Сколько такое служит — по своим же вещам, а не по обзорам в интернете.
+ *
+ * «Больше нет» ставится с первого дня и пишет дату; вместе с датой покупки это
+ * готовый срок службы, который приложение хранило и ни разу ни о чём не
+ * спросило. А спрашивают всегда одно: чинить или менять. Здесь на это не
+ * отвечают — здесь показывают ряд, по которому человек ответит сам.
+ *
+ * Цена дня рядом не для красоты: пять тысяч за три года и пять тысяч за
+ * полгода — разные покупки, и увидеть это можно только поделив.
+ */
+function servedPane(state, thing) {
+  const s = M.served(thing, state.things ?? [], state.kinds ?? []);
+  const day = M.perDay(thing);
+  if (!s && !day) return "";
+
+  return html`<section class="pane">
+    <div class="head-row">
+      <div class="label">Сколько служит</div>
+      ${raw(day ? `<span class="tdim num">${esc(fmtMoney(Math.round(day * 10) / 10))} в день</span>` : "")}
+    </div>
+    ${raw(s ? `<p class="prose">${esc(s.verdict ?? s.said)}<span class="dim"> · ${esc(s.said.toLowerCase())}</span></p>` : "")}
+    ${raw(!s && day ? `<p class="prose prose--muted">Такие вещи ещё не уходили — сравнить пока не с чем. Как только пара штук окажется в «больше нет», здесь появится, сколько они прожили.</p>` : "")}
+  </section>`;
+}
 
 /**
  * Колонка фактов: сводка, соседи по месту, родня по виду.

@@ -93,15 +93,16 @@ export default {
 
 /** Отметка одна на кнопку и на пробел — иначе они разойдутся первой же правкой. */
 function done(spot) {
-  const was = spot.lastDone;
-  const put = (value) => commit("clean.done", (s) => {
+  const was = M.doneSnapshot(spot);
+  const write = (reason, change) => commit(reason, (s) => {
     const target = s.spots.find((x) => x.id === spot.id);
     if (!target) return null;
-    target.lastDone = value;
-    target.at = Date.now();
+    change(target);
     return { kind: "spots", id: target.id };
   });
 
-  put(M.today());
-  toast(`${spot.name} — убрано`, "calm", { undo: () => put(was) });
+  write("clean.done", (target) => M.markDone(target));
+  toast(`${spot.name} — убрано`, "calm", {
+    undo: () => write("clean.undone", (target) => M.restoreDone(target, was)),
+  });
 }

@@ -171,10 +171,16 @@ export const APPS = [
         }));
     },
 
+    /* Та же запись, что делают карта, карточка и план на вечер: день уходит в
+       стопку, а не затирает единственное поле — по стопке Уборка считает, как
+       часто выходит на самом деле. Ядро не тянет модуль приложения ради трёх
+       строк, поэтому за совпадением следит тест «отметка везде одинаковая». */
     apply: (state, act) => {
       const spot = (state.spots ?? []).find((s) => s.id === act.id);
       if (!spot) return null;
-      spot.lastDone = today();
+      const at = today();
+      spot.lastDone = at;
+      spot.done = [...(spot.done ?? []).filter((d) => d !== at), at].sort((a, b) => a - b).slice(-12);
       spot.at = Date.now();
       return { kind: "spots", id: spot.id };
     },
