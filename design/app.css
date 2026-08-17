@@ -663,6 +663,23 @@ a {
   max-width: 110px;
 }
 
+/* A field that holds more than a line: same box, only the height differs — a
+   goal is a sentence, and a one-line box for it invites a one-word answer. */
+
+.field--area {
+  min-height: 0;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+/* Short fields share a row on a wide screen and stack on a phone, instead of
+   three full-width boxes for three words. */
+
+.fieldset--grow {
+  flex: 1 1 130px;
+  min-width: 0;
+}
+
 .addbar {
   display: flex;
   gap: 8px;
@@ -765,6 +782,17 @@ a {
 
 .groupbar {
   padding: 14px var(--pad) 8px;
+}
+
+/* The layout switch on the left, the one thing this screen can create on the
+   right. Two controls of equal weight side by side would ask which is the
+   subject of the screen; the list is. */
+
+.groupbar--split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 /* ---------- chips, extra ---------- */

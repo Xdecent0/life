@@ -20,6 +20,21 @@
   max-width: 900px;
 }
 
+/* ---------- страница проекта ---------- */
+
+/* Работа слева, карточка справа, и колонка работы держит свою меру, а не
+   растягивается на весь остаток окна: список вех шириной в тысячу пикселей —
+   это галочка на одном краю и дата на другом. */
+.workcol > * {
+  max-width: 780px;
+  margin-inline: auto;
+}
+
+.workcol .pane {
+  margin-inline: auto;
+  max-width: 780px;
+}
+
 /* ---------- цикл ---------- */
 
 /* Полоска недель, а не проценты: цикл — это про «сколько ещё осталось», и
@@ -180,6 +195,91 @@
   display: block;
   height: 100%;
   background: var(--accent);
+}
+
+/* В колонке карточки полоса — не строка списка, а ответ на «сколько сделано»,
+   и ей можно занять всю ширину блока: сравнивать её здесь не с чем. */
+.proj-bar--wide {
+  width: 100%;
+  height: 7px;
+}
+
+/* ---------- шевеление по неделям ---------- */
+
+/* «Стоит 30 дней» отвечает только про последнюю правку. Полоска отвечает, было
+   ли это затишьем после работы или проект не двигался с самого начала — и это
+   разные разговоры с собой. Столбики из коммитов волта, не из ощущений. */
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 30px;
+}
+
+.spark i {
+  flex: 1;
+  min-width: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  height: calc(3px + var(--v, 0) * 27px);
+}
+
+.spark i[data-on="1"] { background: var(--accent); }
+
+/* ---------- подпроекты ---------- */
+
+.subrow {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.subrow:last-of-type { border-bottom: 0; }
+
+.subrow-name {
+  font-size: var(--t-body);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.subrow-name::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: none;
+  background: var(--health, var(--ink-4));
+}
+
+.subrow[data-health="ok"]   { --health: #3f7d55; }
+.subrow[data-health="warn"] { --health: #b07d18; }
+.subrow[data-health="bad"]  { --health: var(--alarm); }
+.subrow[data-health="done"] { --health: var(--line-firm); }
+
+/* ---------- входящее ---------- */
+
+/* Та же сетка, что у проекта: первая строка заметки стоит там же, где область и
+   аппетит у карточки, — глаз читает оба списка одним движением. */
+.row--inbox {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name count"
+    "meta count";
+  align-items: center;
+  gap: 3px 14px;
+}
+
+.row--inbox .proj-meta {
+  grid-area: meta;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ---------- выбор и массовые действия ---------- */

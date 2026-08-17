@@ -1340,3 +1340,56 @@ test("синк: правила помнят забытое через резул
 
   assert.deepEqual(merged, { "ХЛБ": "Хлеб" });
 });
+
+/* ------------------------------------------- проекты: снимок целиком */
+
+test("проекты: у каждого вида своя мера, и «ожидание» не притворяется нулём", () => {
+  const miles = PJ.progressOf(BOARD.проекты[0]);
+  assert.equal(miles.pc, 33);
+  assert.match(miles.said, /1 из 3/);
+
+  const count = PJ.progressOf({ вид: "число", число: { текущее: 30, цель: 120 } });
+  assert.equal(count.pc, 25);
+  assert.equal(count.said, "30 из 120");
+
+  const streak = PJ.progressOf({ вид: "серия", серия: { дни: ["1", "2", "3"], цель: 30 } });
+  assert.equal(streak.pc, 10);
+
+  // Показать ноль значило бы соврать, будто ничего не делается.
+  const waits = PJ.progressOf({ вид: "ожидание", ждёт: ["ответ студии"] });
+  assert.equal(waits.pc, null);
+  assert.equal(waits.said, "ответ студии");
+});
+
+test("проекты: заведённое видно до снимка, а галочки в этот список не лезут", () => {
+  const state = board([
+    { id: "e1", что: "проект+", имя: "Обвал", применено: null },
+    { id: "e2", что: "из входящего", из: "00 - Inbox/Вода.md", имя: "Вода", применено: null },
+    { id: "e3", что: "веха", проект: "10 - Проекты/Активные/A.md", строка: 11, закрыта: true, применено: null },
+    { id: "e4", что: "проект+", имя: "Старое", применено: true, ответ: "заведено" },
+  ]);
+
+  const said = PJ.creations(state).map((r) => r.said);
+  assert.equal(said.length, 2, "галочка ничего не заводит, а отвеченное уже в снимке");
+  assert.match(said[0], /Обвал/);
+  assert.match(said[1], /Вода/);
+});
+
+test("проекты: правятся ровно те поля, что правит сервер доски", () => {
+  // Белый список сервера: FIELDS в AI/board_server.py. Поле не оттуда мост
+  // отобьёт, и рисовать для него форму значило бы врать кнопкой.
+  const server = ["статус", "цель", "аппетит", "цикл", "область", "обновлено", "раздел"];
+  for (const field of PJ.EDITABLE) assert.ok(server.includes(field.key), field.key);
+
+  // Статус правится чипами, «обновлено» ставит волт сам.
+  assert.ok(!PJ.EDITABLE.some((f) => f.key === "статус" || f.key === "обновлено"));
+});
+
+test("проекты: пустой снимок не роняет ни один список", () => {
+  const empty = PJ.blank();
+  assert.deepEqual(PJ.inboxOf(empty), []);
+  assert.deepEqual(PJ.spaceCards(empty), []);
+  assert.deepEqual(PJ.subOf({}), []);
+  assert.deepEqual(PJ.activityOf({}), []);
+  assert.deepEqual(PJ.creations(empty), []);
+});

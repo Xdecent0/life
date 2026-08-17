@@ -19,6 +19,9 @@ const SPRITE = `<g id="i-list" fill="none" stroke-width="1.6" stroke-linecap="ro
     <g id="i-share" fill="none" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="M8.5 7.5L12 4l3.5 3.5"/><path d="M6 12v7h12v-7"/></g>
     <g id="i-plus" fill="none" stroke-width="1.7" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g>
     <g id="i-back" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M14 6l-6 6 6 6"/></g>
+    <!-- A tray with a lip, not an envelope: what lands here is notes waiting to
+         be sorted, and an envelope would promise mail. -->
+    <g id="i-inbox" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 13l2.2-7h11.6L20 13v5H4z"/><path d="M4 13h4l1 2h6l1-2h4"/></g>
     <g id="i-chev-right" fill="none" stroke-width="1.9" stroke-linecap="round"><path d="M9.5 5.5l6.5 6.5-6.5 6.5"/></g>
     <g id="i-chev-down" fill="none" stroke-width="1.9" stroke-linecap="round"><path d="M5.5 9.5l6.5 6.5 6.5-6.5"/></g>
     <g id="i-close" fill="none" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></g>

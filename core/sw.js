@@ -11,7 +11,7 @@
 
 /* Raised once, for all of them. The cache name carries the app key too, so the
    four apps do not evict each other while sharing an origin. */
-const VERSION = "v32";
+const VERSION = "v33";
 
 /* Long enough that a working connection nearly always wins the race, short
    enough that a shop doorway does not feel broken. navigator.onLine stays true

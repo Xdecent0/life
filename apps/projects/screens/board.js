@@ -15,6 +15,7 @@ let space = "все";
 let cycle = "все";
 let query = "";
 let picked = new Set();
+let making = "";
 
 export const state = () => ({ cut, sort, space, cycle, query });
 
@@ -100,6 +101,96 @@ function bulkBar() {
   </div>`;
 }
 
+/* ---------- заведение ---------- */
+
+/**
+ * Завести проект и записать итог цикла — операции доски, которых телефон был
+ * лишён.
+ *
+ * Сервер умеет и то и другое с самого начала; экран просто не давал их позвать,
+ * и «завести проект» означало «дойти до компьютера». Форма открывается по
+ * кнопке и закрывается после отправки: пустой бланк над списком — это шум.
+ */
+function makeForm(state) {
+  if (making === "проект") {
+    return html`<section class="pane">
+      <div class="head-row">
+        <div class="label">Новый проект</div>
+        <button class="linkbtn" type="button" data-act="make" data-make="">Свернуть</button>
+      </div>
+      <form class="stack" data-act-submit="addProject">
+        <label class="fieldset">
+          <span class="fieldset-label">Имя</span>
+          <input class="field" name="имя" placeholder="как назовём" autocomplete="off" required>
+        </label>
+        <label class="fieldset">
+          <span class="fieldset-label">Цель</span>
+          <textarea class="field field--area" name="цель" rows="2" placeholder="что должно случиться"></textarea>
+        </label>
+        <div class="rowbtns">
+          <label class="fieldset fieldset--grow">
+            <span class="fieldset-label">Аппетит</span>
+            <input class="field" name="аппетит" placeholder="6 недель" autocomplete="off">
+          </label>
+          <label class="fieldset fieldset--grow">
+            <span class="fieldset-label">Раздел</span>
+            <input class="field" name="раздел" placeholder="Главное сейчас" autocomplete="off">
+          </label>
+          <label class="fieldset fieldset--grow">
+            <span class="fieldset-label">Область</span>
+            <input class="field" name="область" placeholder="Обучение" autocomplete="off">
+          </label>
+        </div>
+        <label class="fieldset">
+          <span class="fieldset-label">Вехи</span>
+          <textarea class="field field--area" name="вехи" rows="3" placeholder="по одной в строке — можно вставить готовым списком"></textarea>
+        </label>
+        <button class="btn btn--ghost btn--sm" type="submit">Завести карточку</button>
+        <p class="prose prose--muted">Карточку слепит волт по шаблону — тем же, что у Obsidian и CLI. До следующего снимка она будет висеть здесь как «в пути».</p>
+      </form>
+    </section>`;
+  }
+
+  if (making === "итог") {
+    const c = M.cycleOf(state);
+
+    return html`<section class="pane">
+      <div class="head-row">
+        <div class="label">Итог цикла ${esc(c?.имя ?? "")}</div>
+        <button class="linkbtn" type="button" data-act="make" data-make="">Свернуть</button>
+      </div>
+      <form class="stack" data-act-submit="addSummary">
+        <label class="fieldset">
+          <span class="fieldset-label">Цель цикла</span>
+          <input class="field" name="цель" placeholder="чего хотели" autocomplete="off">
+        </label>
+        <label class="fieldset">
+          <span class="fieldset-label">Что вышло</span>
+          <textarea class="field field--area" name="текст" rows="4" placeholder="решения по каждому проекту: что закрыли, что режем, что переносим" required></textarea>
+        </label>
+        <button class="btn btn--ghost btn--sm" type="submit">Записать заметкой</button>
+        <p class="prose prose--muted">Ляжет заметкой в «10 - Проекты/Циклы» — там же, где итоги, записанные с компьютера.</p>
+      </form>
+    </section>`;
+  }
+
+  return "";
+}
+
+/** Заведённое ещё не в снимке: без этой полосы оно исчезает до следующего круга. */
+function comingPane(state) {
+  const rows = M.creations(state);
+  if (!rows.length) return "";
+
+  return html`<section class="pane pane--calm">
+    <div class="head-row">
+      <div class="label">В пути</div>
+      <span class="tdim num">${rows.length}</span>
+    </div>
+    ${raw(rows.map((r) => `<div class="insp-row"><span>${esc(r.said)}</span><span class="tdim">ждёт волта</span></div>`).join(""))}
+  </section>`;
+}
+
 /* ---------- экран ---------- */
 
 function emptyScreen(state) {
@@ -141,6 +232,8 @@ export default {
 
       ${raw(cycleBar(s))}
       ${raw(filterBar(s))}
+      ${raw(makeForm(s))}
+      ${raw(comingPane(s))}
       ${raw(bulkBar())}
       ${raw(query ? "" : hints(s))}
 
@@ -163,7 +256,10 @@ export default {
       return html`<main class="screen">
         <header class="head head--dark"><div>${raw(head)}</div></header>
         <div class="body">
-          <div class="groupbar">${raw(cutSwitch())}</div>
+          <div class="groupbar groupbar--split">
+            ${raw(cutSwitch())}
+            <button class="btn btn--ghost btn--sm" type="button" data-act="make" data-make="${making === "проект" ? "" : "проект"}">Новый проект</button>
+          </div>
           ${raw(list)}
         </div>
       </main>`;
@@ -192,6 +288,8 @@ export default {
         </div>
         <span class="toolbar-gap"></span>
         <span class="toolbar-hint"><kbd>/</kbd> искать</span>
+        <button class="btn btn--ghost btn--sm" type="button" data-act="make" data-make="${making === "проект" ? "" : "проект"}">Новый проект</button>
+        ${raw(M.cycleOf(s) ? `<button class="btn btn--ghost btn--sm" type="button" data-act="make" data-make="${making === "итог" ? "" : "итог"}">Итог цикла</button>` : "")}
       </div>
 
       <div class="body">${raw(list)}</div>
@@ -221,6 +319,36 @@ export default {
     },
 
     unpick() { picked.clear(); touch("доска.выбор"); },
+
+    make(el) { making = el.dataset.make; touch("доска.форма"); },
+
+    /** Карточку лепит волт по шаблону: сюда уезжает только то, что человек назвал. */
+    addProject(form) {
+      const data = new FormData(form);
+      const name = String(data.get("имя") ?? "").trim();
+      if (!name) return;
+
+      const fields = {};
+      for (const key of ["цель", "аппетит", "раздел", "область", "вехи"]) {
+        const value = String(data.get(key) ?? "").trim();
+        if (value) fields[key] = value;
+      }
+
+      queue(M.change("проект+", { имя: name, ...fields }));
+      making = "";
+      toast(`«${name}» заведётся при синке`);
+    },
+
+    addSummary(form, s) {
+      const data = new FormData(form);
+      const text = String(data.get("текст") ?? "").trim();
+      const cycle = M.cycleOf(s)?.имя ?? "";
+      if (!text || !cycle) return;
+
+      queue(M.change("итог+", { цикл: cycle, цель: String(data.get("цель") ?? "").trim(), текст: text }));
+      making = "";
+      toast(`Итог ${cycle} уедет заметкой`);
+    },
 
     /** Перенос идёт через заметку: правка на каждый проект, экран один раз. */
     move(el, s) {

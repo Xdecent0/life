@@ -15,6 +15,7 @@ life.serve({
     "./screens/row.js",
     "./screens/project.js",
     "./screens/deeds.js",
+    "./screens/inbox.js",
     "./screens/archive.js",
     "./screens/settings.js",
     "../../design/app.css",

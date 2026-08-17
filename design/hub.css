@@ -97,11 +97,27 @@
   flex-wrap: wrap;
 }
 
+/* Панели общего: две колонки, но не две независимые стопки.
+   С align-items: start карточка ростом пониже оставляла под собой дыру до
+   следующего ряда, и ряд переставал читаться рядом — шесть карточек выглядели
+   как случайно рассыпанные. Ряд тянется по высокой, а действие в каждой уходит
+   вниз, поэтому кнопки соседей стоят на одной линии. */
 .hub-panes {
   display: grid;
   grid-template-columns: 1fr;
   gap: 14px;
-  align-items: start;
+}
+
+.hub-panes .pane {
+  margin: 0;
+  max-width: none;
+  height: 100%;
+}
+
+.hub-panes .pane > .btn,
+.hub-panes .pane > .rowbtns,
+.hub-panes .pane > form {
+  margin-top: auto;
 }
 
 @media (min-width: 860px) {
