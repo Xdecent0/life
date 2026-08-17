@@ -49,12 +49,21 @@ export const APPS = [
           name: item.product,
           note: expiryLabel(item, now, { gone: "просрочено", zero: "сегодня последний день", one: "до завтра" }),
           href: `#item/${item.id}`,
-          act: { label: "Съел", id: item.id },
+          act: { label: "Съел", kind: "stock", id: item.id },
         })),
 
     /* Та же запись, что делает сама Кухня: уровень «кончился» и метка времени,
-       по которой синк решает, чья версия свежее. */
+       по которой синк решает, чья версия свежее. Вид действия обязателен —
+       склад и список это два разных «готово», и путать их нельзя. */
     apply: (state, act) => {
+      if (act.kind === "list") {
+        const line = (state.list ?? []).find((i) => i.id === act.id);
+        if (!line || line.done) return null;
+        line.done = true;
+        line.at = Date.now();
+        return { kind: "list", id: line.id };
+      }
+
       const item = (state.stock ?? []).find((i) => i.id === act.id);
       if (!item || item.empty) return null;
       item.level = "кончился";
@@ -68,11 +77,13 @@ export const APPS = [
         name: i.product,
         note: i.empty ? "кончилось" : [i.qty, i.zone].filter(Boolean).join(" · "),
         href: `#item/${i.id}`,
+        act: i.empty ? null : { label: "Съел", kind: "stock", id: i.id },
       })),
       ...alive(state.list).filter((i) => hit(i.product)).map((i) => ({
         name: i.product,
         note: i.done ? "в списке, взято" : "в списке",
         href: "#list",
+        act: i.done ? null : { label: "Взял", kind: "list", id: i.id },
       })),
     ],
   },
@@ -140,7 +151,7 @@ export const APPS = [
           name: spot.name,
           note: [rooms.get(spot.room), overdueLabel(daysBetween(at, now))].filter(Boolean).join(" · "),
           href: `#spot/${spot.id}`,
-          act: { label: "Убрал", id: spot.id },
+          act: { label: "Убрал", kind: "spot", id: spot.id },
         }));
     },
 
@@ -156,7 +167,12 @@ export const APPS = [
       const rooms = new Map((state.rooms ?? []).map((r) => [r.id, r.name]));
       return alive(state.spots)
         .filter((s) => hit(s.name) || hit(rooms.get(s.room)))
-        .map((s) => ({ name: s.name, note: rooms.get(s.room) ?? "", href: `#spot/${s.id}` }));
+        .map((s) => ({
+          name: s.name,
+          note: rooms.get(s.room) ?? "",
+          href: `#spot/${s.id}`,
+          act: { label: "Убрал", kind: "spot", id: s.id },
+        }));
     },
   },
 
@@ -185,7 +201,7 @@ export const APPS = [
           name: place.name,
           note: ["зовёт обратно", place.area].filter(Boolean).join(" · "),
           href: `#place/${place.id}`,
-          act: { label: "Был", id: place.id },
+          act: { label: "Был", kind: "place", id: place.id },
         })),
 
     apply: (state, act) => {
@@ -203,6 +219,7 @@ export const APPS = [
           name: p.name,
           note: [(p.visits ?? []).length ? "был" : "хочу сходить", p.area].filter(Boolean).join(" · "),
           href: `#place/${p.id}`,
+          act: { label: "Был", kind: "place", id: p.id },
         })),
   },
 
@@ -248,7 +265,7 @@ export const APPS = [
           // Раздел называется «Дела»: «#projects» такого экрана нет, и ссылка
           // молча роняла человека на доску.
           href: "#deeds",
-          act: { label: "Сделал", id: d.ид },
+          act: { label: "Сделал", kind: "deed", id: d.ид },
         }));
 
       return [...stalled, ...late];
@@ -274,7 +291,8 @@ export const APPS = [
       ...(state.board?.дела ?? []).filter((d) => hit(d.текст)).map((d) => ({
         name: d.текст,
         note: d.сделано ? "дело, сделано" : ["дело", d.срок].filter(Boolean).join(" · "),
-        href: "#projects",
+        href: "#deeds",
+        act: d.сделано ? null : { label: "Сделал", kind: "deed", id: d.ид },
       })),
     ],
   },

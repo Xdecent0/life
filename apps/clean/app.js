@@ -8,6 +8,7 @@ import * as log from "../../core/log.js";
 import { boot } from "../../core/shell.js";
 import * as M from "./lib/model.js";
 
+import today from "./screens/today.js";
 import map from "./screens/map.js";
 import rooms from "./screens/rooms.js";
 import spot from "./screens/spot.js";
@@ -18,11 +19,14 @@ guardUnload();
 mountIcons();
 
 boot({
-  screens: { map, rooms, spot, settings },
+  screens: { today, map, rooms, spot, settings },
   nav: [
+    { route: "today", label: "Сегодня", icon: "i-check" },
     { route: "map", label: "Карта", icon: "i-stock" },
     { route: "rooms", label: "Комнаты", icon: "i-list" },
   ],
-  home: "map",
-  badge: (route, state) => (route === "map" ? M.dueEverywhere(state).length : 0),
+  /* Дом открывают не «посмотреть карту», а «что сегодня»: план идёт первым, и
+     значок висит на нём же. */
+  home: "today",
+  badge: (route, state) => (route === "today" ? M.dueEverywhere(state).length : 0),
 });

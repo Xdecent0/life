@@ -12,6 +12,7 @@ life.serve({
     "./manifest.webmanifest",
     "./lib/model.js",
     "./lib/store.js",
+    "./screens/today.js",
     "./screens/map.js",
     "./screens/rooms.js",
     "./screens/spot.js",

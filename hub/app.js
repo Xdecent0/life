@@ -151,12 +151,16 @@ function searchPane() {
     </label>
 
     ${raw(!asked ? "" : found.length
-      ? `<div class="feed">${found.slice(0, 12).map((row) => `<a class="feed-row" href="${esc(row.href)}">
-          <span class="feed-mark" aria-hidden="true">${icon(row.icon, { size: 16, stroke: "currentColor" })}</span>
-          <span class="feed-name">${esc(row.name)}</span>
-          <span class="feed-note">${esc(row.note)}</span>
-          <span class="feed-app">${esc(row.app)}</span>
-        </a>`).join("")}</div>`
+      ? `<div class="feed">${found.slice(0, 12).map((row, i) => `<div class="feed-line">
+          <a class="feed-row" href="${esc(row.href)}">
+            <span class="feed-mark" aria-hidden="true">${icon(row.icon, { size: 16, stroke: "currentColor" })}</span>
+            <span class="feed-name">${esc(row.name)}</span>
+            <span class="feed-note">${esc(row.note)}</span>
+            <span class="feed-app">${esc(row.app)}</span>
+          </a>
+          ${row.act ? `<button class="btn btn--ghost btn--sm feed-do" type="button" data-act="markFound" data-row="${i}"
+            aria-label="${esc(row.act.label)}: ${esc(row.name)}">${esc(row.act.label)}</button>` : ""}
+        </div>`).join("")}</div>`
       : `<p class="prose prose--muted">Ничего не нашлось. Приложение, которое не открывали на этом устройстве, пока молчит — его данные лежат в репозитории, а не здесь.</p>`)}
   </section>`;
 }
@@ -368,6 +372,19 @@ function render() {
 
 /* ---------- действия ---------- */
 
+/** Одна отметка на два списка: и лента, и находки поиска зовут её. */
+function markRow(row) {
+  if (!row?.act) return;
+
+  const { ok, undo } = actOn(row);
+  if (!ok) return toast("Не вышло отметить — приложение переписало запись", "alarm");
+
+  render();
+  toast(`${row.name} — ${row.act.label.toLowerCase()}`, "calm", {
+    undo: () => { undo(); render(); },
+  });
+}
+
 const ACTIONS = {
   async connect(form) {
     const data = new FormData(form);
@@ -413,18 +430,12 @@ const ACTIONS = {
    * приехать синхронизация, и отметить тогда надо ту строку, что человек видит,
    * а не ту, что была.
    */
-  mark(el) {
-    const row = urgentEverywhere(today())[Number(el.dataset.row)];
-    if (!row?.act) return;
+  mark(el) { markRow(urgentEverywhere(today())[Number(el.dataset.row)]); },
 
-    const { ok, undo } = actOn(row);
-    if (!ok) return toast("Не вышло отметить — приложение переписало запись", "alarm");
-
-    render();
-    toast(`${row.name} — ${row.act.label.toLowerCase()}`, "calm", {
-      undo: () => { undo(); render(); },
-    });
-  },
+  /* Найденное отмечается так же, как срочное: человек уже нашёл нужную строку,
+     и заставлять его открывать приложение ради галочки — та же лишняя дорога,
+     от которой избавлена лента. */
+  markFound(el) { markRow(searchEverywhere(query)[Number(el.dataset.row)]); },
 
   pairShow() { pairing = true; render(); },
   pairHide() { pairing = false; render(); },

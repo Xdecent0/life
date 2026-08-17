@@ -157,3 +157,62 @@ export function dueEverywhere(state, now = today()) {
     .map((d) => alive(state).find((s) => s.id === d.id))
     .filter(Boolean);
 }
+
+/* ---------- план на вечер ---------- */
+
+/**
+ * Сколько это займёт.
+ *
+ * Не хронометраж, а порядок величины: раковину протирают, пол моют, окно моют
+ * долго. Считается от цикла, потому что другого признака «сколько работы» в
+ * данных нет, а спрашивают всегда одно — «я успею до сериала?».
+ */
+export const minutesOf = (spot) => {
+  const n = spot.every ?? 7;
+  if (n <= 2) return 5;
+  if (n <= 7) return 10;
+  if (n <= 30) return 20;
+  return 40;
+};
+
+/**
+ * План на вечер: что пора, по комнатам, с честной оценкой времени.
+ *
+ * По комнатам, а не одним списком по срочности: убирают комнату целиком —
+ * тряпка уже в руке, и метаться из кухни в ванную и обратно ради двух
+ * просроченных поверхностей никто не станет.
+ *
+ * Комнаты идут по тому, где хуже: сначала та, где просрочено больше всего.
+ */
+export function plan(state, now = today()) {
+  const due = dueEverywhere(state, now);
+  const rooms = roomsOf(state);
+  const named = new Map(rooms.map((r) => [r.id, r.name]));
+
+  const groups = [];
+  for (const spot of due) {
+    const key = spot.room ?? "";
+    let group = groups.find((g) => g.id === key);
+    if (!group) {
+      group = { id: key, name: named.get(key) ?? "без комнаты", rows: [], minutes: 0 };
+      groups.push(group);
+    }
+    group.rows.push(spot);
+    group.minutes += minutesOf(spot);
+  }
+
+  const order = rooms.map((r) => r.id);
+  groups.sort((a, b) => b.rows.length - a.rows.length || order.indexOf(a.id) - order.indexOf(b.id));
+
+  return { groups, minutes: groups.reduce((n, g) => n + g.minutes, 0), count: due.length };
+}
+
+/** Время словами: «полчаса» понятнее, чем «31 минута». */
+export function saidMinutes(minutes) {
+  if (!minutes) return "нисколько";
+  if (minutes < 15) return `${minutes} минут`;
+  if (minutes < 25) return "минут двадцать";
+  if (minutes < 40) return "полчаса";
+  if (minutes < 70) return "около часа";
+  return `часа ${Math.round(minutes / 60)}`;
+}

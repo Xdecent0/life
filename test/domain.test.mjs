@@ -1573,3 +1573,75 @@ test("проекты: лента сделанного идёт свежим св
 
   assert.deepEqual(rows.map((m) => m.текст), ["вторая", "первая"]);
 });
+
+/* ------------------------------------------------ уборка: план на вечер */
+
+test("уборка: план собирается по комнатам, а не по срочности", async () => {
+  const C = await import("../apps/clean/lib/model.js");
+  const day = 86400000;
+  const now = C.today();
+
+  const state = {
+    rooms: [{ id: "r1", name: "кухня" }, { id: "r2", name: "ванная" }],
+    spots: [
+      { id: "s1", name: "пол", room: "r1", every: 3, lastDone: now - 30 * day },
+      { id: "s2", name: "плита", room: "r1", every: 7, lastDone: now - 20 * day },
+      { id: "s3", name: "раковина", room: "r2", every: 2, lastDone: now - 40 * day },
+      { id: "s4", name: "окно", room: "r2", every: 90, lastDone: now - day },
+    ],
+  };
+
+  const { groups, count, minutes } = C.plan(state, now);
+
+  // Сначала комната, где просрочено больше: убирают комнату целиком.
+  assert.deepEqual(groups.map((g) => g.name), ["кухня", "ванная"]);
+  assert.deepEqual(groups[0].rows.map((s) => s.id), ["s1", "s2"]);
+  assert.equal(count, 3, "окно вымыто вчера и в план не идёт");
+
+  // Время — от цикла: чем реже, тем дольше.
+  assert.equal(C.minutesOf({ every: 1 }) < C.minutesOf({ every: 90 }), true);
+  assert.equal(minutes, C.minutesOf(state.spots[0]) + C.minutesOf(state.spots[1]) + C.minutesOf(state.spots[2]));
+  assert.equal(C.saidMinutes(0), "нисколько");
+  assert.equal(C.saidMinutes(30), "полчаса");
+
+  // Свежая квартира — пустой план, а не выдуманная работа.
+  assert.equal(C.plan({ rooms: state.rooms, spots: [state.spots[3]] }, now).count, 0);
+});
+
+test("пульт: найденное отмечается тем же способом, что срочное", async () => {
+  const { APPS, searchEverywhere } = await import("../core/registry.js");
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, v),
+    removeItem: (k) => store.delete(k),
+  };
+
+  store.set("kitchen.state.v1", JSON.stringify({
+    version: 1, queue: [],
+    stock: [{ id: "i1", product: "Молоко", at: 1 }],
+    list: [{ id: "l1", product: "Молоко овсяное", done: false, at: 1 }],
+  }));
+
+  const found = searchEverywhere("молок");
+  assert.equal(found.length, 2);
+
+  // Склад и список — два разных «готово», и вид действия их различает.
+  assert.deepEqual(found.map((r) => r.act.kind), ["stock", "list"]);
+  assert.deepEqual(found.map((r) => r.act.label), ["Съел", "Взял"]);
+
+  const kitchen = APPS.find((a) => a.key === "kitchen");
+  const state = JSON.parse(store.get("kitchen.state.v1"));
+
+  kitchen.apply(state, found[1].act);
+  assert.equal(state.list[0].done, true);
+  assert.equal(state.stock[0].empty ?? false, false, "взятое в списке не пустой склад");
+
+  kitchen.apply(state, found[0].act);
+  assert.equal(state.stock[0].empty, true);
+
+  // Повторная отметка ничего не пишет: очередь не должна расти на пустом месте.
+  assert.equal(kitchen.apply(state, found[0].act), null);
+
+  delete globalThis.localStorage;
+});
