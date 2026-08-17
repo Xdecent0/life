@@ -1,0 +1,15 @@
+{
+  "name": "Жизнь",
+  "short_name": "Жизнь",
+  "description": "Общий пульт: приложения, доступ и телефон в одном месте",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fcfaf2",
+  "theme_color": "#1c3327",
+  "lang": "ru",
+  "icons": [
+    { "src": "../apps/kitchen/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "../apps/kitchen/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

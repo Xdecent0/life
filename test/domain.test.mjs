@@ -6,20 +6,20 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import * as M from "../lib/model.js";
-import { sameProduct, findInStock, match, rank, stepDown, lineMatchesProduct } from "../lib/recipes.js";
-import { purchaseRhythm } from "../lib/model.js";
-import { mergeById, mergeHistory, mergeGone, dropTombstones, shouldAutoSync, shouldAutoPull, referenceReport, mergeRules, mergeStamps, mergeLongest, foldClosed } from "../lib/sync.js";
-import { unchanged } from "../lib/github.js";
-import { candidates } from "../lib/trip.js";
-import { encodePairing, parsePairing } from "../lib/pair.js";
-import { encode, versionFor } from "../lib/qr.js";
-import * as M_MONEY from "../lib/money.js";
-import * as log from "../lib/log.js";
-import { parseTable, parseShelf, parseSynonyms, parseZones, parseRecipe } from "../lib/vault.js";
-import { toStockItem } from "../lib/receipt.js";
-import { priceHistory, bestStore, trackingSummary, weekStart, staples } from "../lib/planning.js";
-import { SEED_SHELF, SEED_SYNONYMS, SEED_JUNK, SEED_AISLES } from "../lib/store.js";
+import * as M from "../apps/kitchen/lib/model.js";
+import { sameProduct, findInStock, match, rank, stepDown, lineMatchesProduct } from "../apps/kitchen/lib/recipes.js";
+import { purchaseRhythm } from "../apps/kitchen/lib/model.js";
+import { mergeById, mergeHistory, mergeGone, dropTombstones, shouldAutoSync, shouldAutoPull, referenceReport, mergeRules, mergeStamps, mergeLongest, foldClosed } from "../core/sync.js";
+import { unchanged } from "../core/github.js";
+import { candidates } from "../apps/kitchen/lib/trip.js";
+import { encodePairing, parsePairing } from "../core/pair.js";
+import { encode, versionFor } from "../core/qr.js";
+import * as M_MONEY from "../core/money.js";
+import * as log from "../core/log.js";
+import { parseTable, parseShelf, parseSynonyms, parseZones, parseRecipe } from "../core/vault.js";
+import { toStockItem } from "../apps/kitchen/lib/receipt.js";
+import { priceHistory, bestStore, trackingSummary, weekStart, staples } from "../apps/kitchen/lib/planning.js";
+import { SEED_SHELF, SEED_SYNONYMS, SEED_JUNK, SEED_AISLES } from "../apps/kitchen/lib/store.js";
 
 const DAY = M.DAY;
 const T0 = Date.UTC(2026, 7, 15);
@@ -140,7 +140,7 @@ test("сезонный продукт не всплывает через пол�
 });
 
 test("пропущенная строка чека не считается добавленной", async () => {
-  const { summarize } = await import("../lib/receipt.js");
+  const { summarize } = await import("../apps/kitchen/lib/receipt.js");
   const parsed = {
     accepted: [{ product: "Молоко" }, { product: "Хлеб" }],
     disputed: [{ product: "Щербет" }, { raw: "ЩЕРБЕТ", product: null }],
@@ -272,7 +272,7 @@ test("слияние не отменяет чужую покупку и не в�
 });
 
 test("очередь уходит сама, но не на каждое дрожание сети", async () => {
-  const { shouldAutoSync } = await import("../lib/sync.js");
+  const { shouldAutoSync } = await import("../core/sync.js");
   const base = { configured: true, demo: false, queued: 3, online: true, busy: false, lastAttempt: 0, now: 120000 };
 
   assert.equal(shouldAutoSync(base), true);
@@ -304,7 +304,7 @@ test("надгробие живёт год, потому что синк руч�
 });
 
 test("экспорт списка не выдумывает того, чего не знает", async () => {
-  const S = await import("../lib/share.js");
+  const S = await import("../apps/kitchen/lib/share.js");
   const entries = [
     { id: "1", product: "Молоко", qty: "2 л", price: 89 },
     { id: "2", product: "Хлеб", qty: "", price: null },
@@ -399,7 +399,7 @@ test("трекинг считает долю еды дома и траты вн�
 test("демо-данные опознаются даже без флага", async () => {
   // States saved before the flag existed must still be recognised, or the
   // guard fails exactly for the person who set the app up early.
-  const { looksLikeDemo } = await import("../lib/store.js");
+  const { looksLikeDemo } = await import("../apps/kitchen/lib/store.js");
   assert.ok(looksLikeDemo({ stock: [{ id: "s1" }, { id: "s2" }], receipts: [{ id: "rc_1" }] }));
   assert.ok(!looksLikeDemo({ stock: [{ id: "s_a1b2" }], receipts: [{ id: "rc_x9" }] }));
   assert.ok(!looksLikeDemo({ stock: [], receipts: [] }));

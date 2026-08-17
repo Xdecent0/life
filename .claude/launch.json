@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "kitchen",
+      "name": "life",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["tools/devserver.py", "8781"],
-      "port": 8781
+      "runtimeArgs": ["tools/devserver.py", "8782"],
+      "port": 8782
     }
   ]
 }
