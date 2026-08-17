@@ -42,5 +42,8 @@ life.serve({
     "../apps/places/manifest.js",
     "../apps/places/lib/store.js",
     "../apps/places/lib/model.js",
+    "../apps/projects/manifest.js",
+    "../apps/projects/lib/store.js",
+    "../apps/projects/lib/model.js",
   ],
 });

@@ -14,6 +14,8 @@ import KITCHEN from "../apps/kitchen/manifest.js";
 import THINGS from "../apps/things/manifest.js";
 import CLEAN from "../apps/clean/manifest.js";
 import PLACES from "../apps/places/manifest.js";
+import PROJECTS from "../apps/projects/manifest.js";
+import * as PJ from "../apps/projects/lib/model.js";
 import { unchanged } from "../core/github.js";
 import { candidates } from "../apps/kitchen/lib/trip.js";
 import { encodePairing, parsePairing } from "../core/pair.js";
@@ -1113,7 +1115,7 @@ test("места: вид угадывается по названию, райо�
    would have left five junk files in the data repository. Nothing caught it,
    because nothing could look at a round without performing one. */
 
-const MANIFESTS = [KITCHEN, THINGS, CLEAN, PLACES];
+const MANIFESTS = [KITCHEN, THINGS, CLEAN, PLACES, PROJECTS];
 
 test("синк: каждый шаг круга знает свой путь", () => {
   for (const manifest of MANIFESTS) {
@@ -1158,12 +1160,96 @@ test("синк: коммит подписан тем приложением, к�
 });
 
 test("синк: свёртка закрытых позиций — правило склада, а не ядра", () => {
-  const folding = plan(KITCHEN).filter((s) => s.fold).map((s) => s.key);
-  assert.deepEqual(folding, ["stock"]);
+  assert.deepEqual(plan(KITCHEN).filter((s) => s.fold).map((s) => s.key), ["stock"]);
+  assert.deepEqual(plan(PROJECTS).filter((s) => s.fold).map((s) => s.key), ["edits"]);
 
   for (const manifest of [THINGS, CLEAN, PLACES]) {
     assert.deepEqual(plan(manifest).filter((s) => s.fold), []);
   }
+});
+
+/* ------------------------------------------------------------- проекты */
+
+const BOARD = {
+  собрано: "2026-08-17",
+  проекты: [
+    {
+      ид: "10 - Проекты/Активные/A.md", имя: "A", статус: "активно", группа: "в работе",
+      раздел: "Главное сейчас", процент: 33, вехи_закрыто: 1, вехи_всего: 3, дней_без_движения: 30,
+      вехи: [
+        { текст: "первая", закрыта: true, строка: 10 },
+        { текст: "вторая", закрыта: false, строка: 11 },
+        { текст: "третья", закрыта: false, строка: 12 },
+      ],
+    },
+    {
+      ид: "10 - Проекты/Активные/B.md", имя: "B", статус: "активно", группа: "в работе",
+      раздел: "", процент: 66, вехи_закрыто: 2, вехи_всего: 3, дней_без_движения: 2, вехи: [],
+    },
+  ],
+  дела: [{ ид: "t1", текст: "позвонить", срок: "2026-08-01", проект: "A", сделано: false }],
+  разделы: ["Главное сейчас"],
+};
+
+const board = (edits = []) => ({ board: BOARD, edits });
+
+test("проекты: правка, которую волт ещё не видел, показана как ожидающая", () => {
+  const state = board([
+    { id: "e1", что: "веха", проект: "10 - Проекты/Активные/A.md", строка: 11, текст: "вторая", закрыта: true, применено: null },
+  ]);
+
+  const shown = PJ.milestonesOf(state, BOARD.проекты[0]);
+  assert.equal(shown[1].закрыта, true);
+  assert.equal(shown[1].ждёт, true, "галочка в метро и галочка в файле — разные вещи");
+
+  // Ответ пришёл — «ждёт» снимается, а состояние теперь диктует снимок.
+  const answered = board([{ ...state.edits[0], применено: true, ответ: "веха обновлена" }]);
+  assert.equal(PJ.milestonesOf(answered, BOARD.проекты[0])[1].закрыта, false);
+  assert.equal(PJ.waiting(answered).length, 0);
+});
+
+test("проекты: отбитая правка не теряется и несёт причину", () => {
+  const state = board([
+    { id: "e1", что: "веха", применено: false, ответ: "строка разошлась с доской" },
+    { id: "e2", что: "веха", применено: true, ответ: "веха обновлена" },
+  ]);
+
+  assert.deepEqual(PJ.refused(state).map((e) => e.ответ), ["строка разошлась с доской"]);
+});
+
+test("проекты: ответившая правка через месяц становится надгробием", () => {
+  const now = Date.UTC(2026, 7, 17);
+  const day = 86400000;
+  const rows = [
+    { id: "e1", применено: true, ответ: "ок", at: now - 40 * day },
+    { id: "e2", применено: true, ответ: "ок", at: now - 3 * day },
+    { id: "e3", применено: null, at: now - 90 * day },
+  ];
+
+  const folded = PJ.foldAnswered(rows, 30, now);
+  assert.deepEqual(folded[0], { id: "e1", deleted: true, deletedAt: now - 40 * day, at: now - 40 * day });
+  assert.equal(folded[1].ответ, "ок", "свежий ответ ещё нужен на экране");
+  assert.equal(folded[2].deleted, undefined, "неотвеченная правка не хоронится никогда");
+});
+
+test("проекты: разделы идут в порядке волта, стоящее — выше", () => {
+  const groups = PJ.groupBy(board(), "раздел");
+  assert.deepEqual(groups.map((g) => g.name), ["Главное сейчас", "без раздела"]);
+
+  const all = PJ.groupBy(board(), "группа")[0].items.map((p) => p.имя);
+  assert.deepEqual(all, ["A", "B"], "тридцать дней без движения — выше двух");
+});
+
+test("проекты: подсказки те же, что у доски, и по тем же порогам", () => {
+  assert.deepEqual(PJ.stalled(board()).map((p) => p.имя), ["A"]);
+  assert.deepEqual(PJ.almostDone(board()).map((p) => p.имя), ["B"]);
+});
+
+test("проекты: дело без срока не просрочено", () => {
+  const now = Date.UTC(2026, 7, 17);
+  assert.equal(PJ.overdue({ срок: "2026-08-01", сделано: false }, now), true);
+  assert.equal(PJ.overdue({ срок: "", сделано: false }, now), false);
+  assert.equal(PJ.overdue({ срок: "2026-08-01", сделано: true }, now), false);
 });
 
 test("синк: курсы читаются, а пустой ответ не стирает вчерашние", () => {

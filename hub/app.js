@@ -33,8 +33,9 @@ import KITCHEN from "../apps/kitchen/manifest.js";
 import THINGS from "../apps/things/manifest.js";
 import CLEAN from "../apps/clean/manifest.js";
 import PLACES from "../apps/places/manifest.js";
+import PROJECTS from "../apps/projects/manifest.js";
 
-const MANIFESTS = { kitchen: KITCHEN, things: THINGS, clean: CLEAN, places: PLACES };
+const MANIFESTS = { kitchen: KITCHEN, things: THINGS, clean: CLEAN, places: PLACES, projects: PROJECTS };
 
 /** The pairing code holds a live key, so it is never on screen unless asked for. */
 let pairing = false;
@@ -298,7 +299,7 @@ function render() {
   root.innerHTML = html`<div class="hub">
     <header class="hub-head">
       <h1>Жизнь</h1>
-      <p>Четыре приложения про быт. Ключ доступа, телефон и общий круг синка — здесь, один раз на все.</p>
+      <p>Пять приложений про быт и работу. Ключ доступа, телефон и общий круг синка — здесь, один раз на все.</p>
     </header>
 
     ${raw(searchPane())}

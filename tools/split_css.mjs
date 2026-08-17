@@ -23,6 +23,7 @@ const APPS = [
   { key: "things", dirs: ["apps/things"], title: "Вещи", what: "Гарантии, виды, где лежит." },
   { key: "clean", dirs: ["apps/clean"], title: "Уборка", what: "План дома: комнаты как квадраты, поверхности внутри." },
   { key: "places", dirs: ["apps/places"], title: "Места", what: "Строка со звёздами, «зовёт обратно»." },
+  { key: "projects", dirs: ["apps/projects"], title: "Проекты", what: "Строка с полосой прогресса, вехи и дела чекбоксами." },
   { key: "hub", dirs: ["hub"], title: "Пульт", what: "Плитки приложений, ключ, пара, лента «сегодня»." },
 ];
 
@@ -227,14 +228,33 @@ const header = (a) =>
   `/* ${a.title} — то, чего нет больше нигде.\n\n   ${a.what}\n   Собирается tools/split_css.mjs по использованию: сюда попадает правило,\n   все классы которого не встречаются ни в одном другом приложении.\n   Грузится вместе с design/app.css, а не вместо него. */\n\n`;
 
 if (process.argv.includes("--check")) {
-  for (const a of APPS) console.log(`${a.key}: ${(out[a.key] ?? []).length} правил`);
+  for (const a of APPS) console.log(`${a.key}: ${(out[a.key] ?? []).length} правил к переносу`);
   console.log(`общее: ${out.shared.length} кусков`);
 } else {
   writeFileSync(join(ROOT, "design/app.css"), out.shared.join("\n\n").trim() + "\n", "utf8");
+
   for (const a of APPS) {
     const rules = out[a.key] ?? [];
-    writeFileSync(join(ROOT, `design/${a.key}.css`), header(a) + rules.join("\n\n").trim() + "\n", "utf8");
-    console.log(`design/${a.key}.css — ${rules.length} правил`);
+    const path = join(ROOT, `design/${a.key}.css`);
+
+    /* Переносит, а не пересоздаёт. Лист приложения — обычный файл, который
+       пишут руками; первая версия этого скрипта его перезаписывала, и всё
+       написанное после разреза исчезало при следующем прогоне. */
+    let existing = "";
+    try {
+      existing = readFileSync(path, "utf8");
+    } catch {
+      existing = header(a);
+    }
+
+    if (!rules.length) {
+      console.log(`design/${a.key}.css — переносить нечего`);
+      continue;
+    }
+
+    writeFileSync(path, `${existing.trimEnd()}\n\n${rules.join("\n\n").trim()}\n`, "utf8");
+    console.log(`design/${a.key}.css — перенесено правил: ${rules.length}`);
   }
+
   console.log(`design/app.css — ${out.shared.length} кусков`);
 }

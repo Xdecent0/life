@@ -174,6 +174,65 @@ export const APPS = [
           href: `#place/${p.id}`,
         })),
   },
+
+  {
+    key: "projects",
+    name: "Проекты",
+    what: "Доска из волта — вехи, дела, что стоит",
+    href: "../apps/projects/",
+    icon: "i-check",
+    ready: true,
+
+    /* Единственное приложение, чей главный файл — снимок: он собирается на
+       компьютере из заметок волта. Пока снимок не приезжал, честнее молчать,
+       чем показать уверенный ноль. */
+    count: (state) => {
+      const rows = state.board?.проекты ?? [];
+      if (!rows.length) return "снимок не приезжал";
+      const active = rows.filter((p) => p.статус === "активно").length;
+      const deeds = (state.board?.дела ?? []).filter((d) => !d.сделано).length;
+      return [`${active} в работе`, deeds ? `${deeds} дел` : null].filter(Boolean).join(" · ");
+    },
+
+    urgent: (state, now) => {
+      const rows = state.board?.проекты ?? [];
+
+      const stalled = rows
+        .filter((p) => p.статус === "активно" && (p.дней_без_движения ?? 0) >= 21)
+        .map((p) => ({
+          // Стоящий проект просрочен настолько, насколько перестоял порог —
+          // так он встаёт в общую ленту рядом с молоком и полом, а не поверх.
+          left: 21 - (p.дней_без_движения ?? 0),
+          name: p.имя,
+          note: `без движения ${p.дней_без_движения} дн.`,
+          href: `#project/${encodeURIComponent(p.ид)}`,
+        }));
+
+      const late = (state.board?.дела ?? [])
+        .filter((d) => !d.сделано && d.срок && Date.parse(d.срок) <= now)
+        .map((d) => ({
+          left: daysBetween(now, Date.parse(d.срок)),
+          name: d.текст,
+          note: `дело · срок ${d.срок}`,
+          href: "#projects",
+        }));
+
+      return [...stalled, ...late];
+    },
+
+    search: (state, hit) => [
+      ...(state.board?.проекты ?? []).filter((p) => hit(p.имя) || hit(p.цель) || hit(p.аппетит)).map((p) => ({
+        name: p.имя,
+        note: [p.статус, p.раздел].filter(Boolean).join(" · "),
+        href: `#project/${encodeURIComponent(p.ид)}`,
+      })),
+      ...(state.board?.дела ?? []).filter((d) => hit(d.текст)).map((d) => ({
+        name: d.текст,
+        note: d.сделано ? "дело, сделано" : ["дело", d.срок].filter(Boolean).join(" · "),
+        href: "#projects",
+      })),
+    ],
+  },
 ];
 
 const nextClean = (spot) => (spot.lastDone && spot.every ? spot.lastDone + spot.every * DAY : null);
