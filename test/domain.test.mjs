@@ -1429,3 +1429,71 @@ test("проекты: у решения ритуала статус — слов
   // «Везём дальше» ничего не переносит: продолжать — это не событие.
   assert.equal(PJ.CALLS.find((c) => c.key === "везём").status, null);
 });
+
+/* ------------------------------------------------ пульт: отметить из ленты */
+
+test("пульт: отметка из ленты пишет так же, как само приложение", async () => {
+  const { APPS, urgentEverywhere, actOn } = await import("../core/registry.js");
+  const day = 86400000;
+  const store = new Map();
+
+  // Своё хранилище на время теста: пульт ходит в чужие ключи, и это надо
+  // проверять именно через них, а не через внутренности приложений.
+  globalThis.localStorage = {
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, v),
+    removeItem: (k) => store.delete(k),
+  };
+  globalThis.crypto ??= { randomUUID: () => "id" + store.size };
+
+  const now = Date.now();
+  store.set("clean.state.v1", JSON.stringify({
+    version: 1, queue: [],
+    rooms: [{ id: "r1", name: "кухня" }],
+    spots: [{ id: "s1", name: "пол", room: "r1", every: 3, lastDone: now - 30 * day }],
+  }));
+
+  const row = urgentEverywhere(now).find((r) => r.appKey === "clean");
+  assert.ok(row?.act, "просроченная поверхность должна давать действие");
+
+  const { ok, undo } = actOn(row);
+  assert.equal(ok, true);
+
+  const after = JSON.parse(store.get("clean.state.v1"));
+  assert.equal(after.spots[0].lastDone > now - day, true, "убрано — значит сегодня");
+  assert.equal(after.queue.length, 1, "и это уедет синком");
+  assert.deepEqual(after.queue[0].kind, "spots");
+  assert.equal(urgentEverywhere(now).some((r) => r.appKey === "clean"), false, "из ленты пропало");
+
+  // Отмена возвращает файл целиком, а не вычисленное обратное действие.
+  undo();
+  assert.deepEqual(JSON.parse(store.get("clean.state.v1")).spots[0].lastDone, now - 30 * day);
+  assert.equal(JSON.parse(store.get("clean.state.v1")).queue.length, 0);
+
+  // Приложение, которого на устройстве нет, молчит, а не падает.
+  assert.equal(actOn({ appKey: "places", act: { id: "нет" } }).ok, false);
+
+  // Дела Проектов ведут в свой раздел: экрана «#projects» не существует.
+  assert.equal(APPS.find((a) => a.key === "projects").urgent({ board: {
+    проекты: [], дела: [{ ид: "t1", текст: "позвонить", срок: "2020-01-01", сделано: false }],
+  } }, now)[0].href, "#deeds");
+
+  delete globalThis.localStorage;
+});
+
+test("пульт: отметка Проектов — правка в очередь, а не запись в снимок", async () => {
+  const { APPS } = await import("../core/registry.js");
+  const entry = APPS.find((a) => a.key === "projects");
+
+  const state = { board: { проекты: [], дела: [{ ид: "t1", текст: "позвонить", сделано: false }] }, edits: [] };
+  const op = entry.apply(state, { id: "t1" });
+
+  assert.equal(op.kind, "edits");
+  assert.equal(state.edits.length, 1);
+  assert.deepEqual(
+    { что: state.edits[0].что, ид: state.edits[0].ид, сделано: state.edits[0].сделано, применено: state.edits[0].применено },
+    { что: "дело", ид: "t1", сделано: true, применено: null },
+  );
+  // Волт отсюда недостижим: снимок не трогаем, иначе экран покажет ложь.
+  assert.equal(state.board.дела[0].сделано, false);
+});

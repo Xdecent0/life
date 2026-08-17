@@ -14,6 +14,7 @@
 // because four apps do not need one.
 
 import { DAY, today, daysBetween, freshness, expiryLabel } from "./time.js";
+import { reach } from "./reach.js";
 
 const alive = (rows = []) => rows.filter((r) => !r.deleted);
 
@@ -48,7 +49,19 @@ export const APPS = [
           name: item.product,
           note: expiryLabel(item, now, { gone: "просрочено", zero: "сегодня последний день", one: "до завтра" }),
           href: `#item/${item.id}`,
+          act: { label: "Съел", id: item.id },
         })),
+
+    /* Та же запись, что делает сама Кухня: уровень «кончился» и метка времени,
+       по которой синк решает, чья версия свежее. */
+    apply: (state, act) => {
+      const item = (state.stock ?? []).find((i) => i.id === act.id);
+      if (!item || item.empty) return null;
+      item.level = "кончился";
+      item.empty = true;
+      item.at = Date.now();
+      return { kind: "stock", id: item.id };
+    },
 
     search: (state, hit) => [
       ...alive(state.stock).filter((i) => hit(i.product)).map((i) => ({
@@ -127,7 +140,16 @@ export const APPS = [
           name: spot.name,
           note: [rooms.get(spot.room), overdueLabel(daysBetween(at, now))].filter(Boolean).join(" · "),
           href: `#spot/${spot.id}`,
+          act: { label: "Убрал", id: spot.id },
         }));
+    },
+
+    apply: (state, act) => {
+      const spot = (state.spots ?? []).find((s) => s.id === act.id);
+      if (!spot) return null;
+      spot.lastDone = today();
+      spot.at = Date.now();
+      return { kind: "spots", id: spot.id };
     },
 
     search: (state, hit) => {
@@ -163,7 +185,16 @@ export const APPS = [
           name: place.name,
           note: ["зовёт обратно", place.area].filter(Boolean).join(" · "),
           href: `#place/${place.id}`,
+          act: { label: "Был", id: place.id },
         })),
+
+    apply: (state, act) => {
+      const place = (state.places ?? []).find((p) => p.id === act.id);
+      if (!place) return null;
+      place.visits = [...(place.visits ?? []), today()];
+      place.at = Date.now();
+      return { kind: "places", id: place.id };
+    },
 
     search: (state, hit) =>
       alive(state.places)
@@ -214,10 +245,24 @@ export const APPS = [
           left: daysBetween(now, Date.parse(d.срок)),
           name: d.текст,
           note: `дело · срок ${d.срок}`,
-          href: "#projects",
+          // Раздел называется «Дела»: «#projects» такого экрана нет, и ссылка
+          // молча роняла человека на доску.
+          href: "#deeds",
+          act: { label: "Сделал", id: d.ид },
         }));
 
       return [...stalled, ...late];
+    },
+
+    /* Волт отсюда недостижим, поэтому отметка — не запись, а правка в очередь:
+       ровно та же, что ставит само приложение, и с той же пометкой «ждёт волта»
+       на своём экране. */
+    apply: (state, act) => {
+      const id = `e${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+      const edit = { id, что: "дело", ид: act.id, сделано: true, применено: null, ответ: "", at: Date.now() };
+
+      state.edits = [...(state.edits ?? []), edit];
+      return { kind: "edits", id };
     },
 
     search: (state, hit) => [
@@ -290,6 +335,20 @@ export function urgentEverywhere(now = today()) {
   }
 
   return out.sort((a, b) => a.left - b.left);
+}
+
+/**
+ * Отметить строку ленты, не открывая приложение.
+ *
+ * Пульт пишет в чужое хранилище тем же способом, что и само приложение: правка
+ * записи, свежая метка времени и строка в очередь отправки. Возвращает способ
+ * передумать — прежний файл целиком.
+ */
+export function actOn(row) {
+  const entry = APPS.find((a) => a.key === row.appKey);
+  if (!entry?.apply || !row.act) return { ok: false, undo: null };
+
+  return reach(entry.key, (state) => entry.apply(state, row.act));
 }
 
 /**

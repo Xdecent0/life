@@ -2,6 +2,7 @@
 // Every mutation goes through commit() so persistence and sync stay honest.
 
 import { load, save } from "./store.js";
+import { app } from "./app.js";
 import * as log from "./log.js";
 
 /* Loaded on first use, not on import. The app declares itself at boot, and a
@@ -52,6 +53,23 @@ export function guardUnload(scope = window) {
   scope.addEventListener("pagehide", writeNow);
   scope.document?.addEventListener("visibilitychange", () => {
     if (scope.document.visibilityState === "hidden") writeNow();
+  });
+
+  /* Одно хранилище на весь набор, и открытых вкладок бывает две: список кухни в
+     одной, пульт в другой. Вкладка держит своё состояние в памяти и на любой
+     правке пишет его целиком — то есть молча затирает то, что за это время
+     записала соседняя. Раньше это было редкой странностью «галочка отскочила»;
+     с действиями прямо из ленты пульта это стало бы обычным делом.
+
+     Событие storage приходит только в другие вкладки, никогда в ту, что писала. */
+  scope.addEventListener("storage", (e) => {
+    if (e.key !== app().storageKey || !e.newValue) return;
+    writeNow();                                     // своё несохранённое — не терять
+    try {
+      replace(JSON.parse(e.newValue), "соседняя вкладка");
+    } catch {
+      log.warn("состояние", "соседняя вкладка записала нечитаемое");
+    }
   });
 }
 

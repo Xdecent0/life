@@ -20,7 +20,7 @@ declare({
 
 import { html, raw, icon, esc, toast, fmtDate, fmtTime } from "../core/dom.js";
 import { mountIcons } from "../core/icons.js";
-import { APPS, peek, urgentEverywhere, searchEverywhere } from "../core/registry.js";
+import { APPS, peek, urgentEverywhere, searchEverywhere, actOn } from "../core/registry.js";
 import { syncApp } from "../core/sync.js";
 import { today, plural } from "../core/time.js";
 import * as gh from "../core/github.js";
@@ -113,15 +113,22 @@ function todayPane() {
 
   const shown = rows.slice(0, 8);
 
+  /* Строка ленты — ссылка, а кнопка отметки внутри неё была бы ссылкой в ссылке.
+     Поэтому кнопка стоит рядом, за пределами якоря: нажать «Убрал» и уйти на
+     экран поверхности — разные намерения, и путать их нельзя. */
   return html`<section class="hub-section">
     <span class="hub-label">Сегодня · ${rows.length}</span>
     <div class="feed">
-      ${raw(shown.map((row) => `<a class="feed-row" href="${esc(row.href)}">
-        <span class="feed-mark" aria-hidden="true">${icon(row.icon, { size: 16, stroke: "currentColor" })}</span>
-        <span class="feed-name">${esc(row.name)}</span>
-        <span class="feed-note">${esc(row.note)}</span>
-        <span class="feed-app">${esc(row.app)}</span>
-      </a>`).join(""))}
+      ${raw(shown.map((row, i) => `<div class="feed-line">
+        <a class="feed-row" href="${esc(row.href)}">
+          <span class="feed-mark" aria-hidden="true">${icon(row.icon, { size: 16, stroke: "currentColor" })}</span>
+          <span class="feed-name">${esc(row.name)}</span>
+          <span class="feed-note">${esc(row.note)}</span>
+          <span class="feed-app">${esc(row.app)}</span>
+        </a>
+        ${row.act ? `<button class="btn btn--ghost btn--sm feed-do" type="button" data-act="mark" data-row="${i}"
+          aria-label="${esc(row.act.label)}: ${esc(row.name)}">${esc(row.act.label)}</button>` : ""}
+      </div>`).join(""))}
       ${raw(rows.length > shown.length
         ? `<p class="prose prose--muted feed-more">И ещё ${rows.length - shown.length}: они в своих приложениях.</p>`
         : "")}
@@ -397,6 +404,26 @@ const ACTIONS = {
     pairing = false;
     render();
     toast("Ключ забыт. Данные приложений остались на месте");
+  },
+
+  /**
+   * Отметить прямо из ленты.
+   *
+   * Список берётся заново, а не из замыкания: между отрисовкой и нажатием могла
+   * приехать синхронизация, и отметить тогда надо ту строку, что человек видит,
+   * а не ту, что была.
+   */
+  mark(el) {
+    const row = urgentEverywhere(today())[Number(el.dataset.row)];
+    if (!row?.act) return;
+
+    const { ok, undo } = actOn(row);
+    if (!ok) return toast("Не вышло отметить — приложение переписало запись", "alarm");
+
+    render();
+    toast(`${row.name} — ${row.act.label.toLowerCase()}`, "calm", {
+      undo: () => { undo(); render(); },
+    });
   },
 
   pairShow() { pairing = true; render(); },

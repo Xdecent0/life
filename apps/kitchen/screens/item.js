@@ -2,6 +2,7 @@
 // and what to cook so it does not become rubbish.
 
 import { html, raw, icon, esc, cap, fmtDate, fmtMoney, toast } from "../../../core/dom.js";
+import { cardScreen } from "../../../core/screens/card.js";
 import { commit, uid } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { rank, LEVELS, lineMatchesProduct } from "../lib/recipes.js";
@@ -37,8 +38,7 @@ export default {
       entry.opened ? "Отмечен как открытый — срок считается по короткой колонке." : null,
     ].filter(Boolean).join(" ");
 
-    return html`<main class="screen">
-      <header class="head">
+    const head = html`<header class="head">
         <div class="head-row">
           <a class="icon-btn icon-btn--sm" href="#stock" aria-label="Назад на склад">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
           <span class="head-sub">${cap(entry.zone)}</span>
@@ -49,10 +49,9 @@ export default {
           ${raw(entry.opened ? `<span class="chip">открыт</span>` : "")}
           ${raw(entry.qty ? `<span class="chip num">${esc(entry.qty)}</span>` : "")}
         </div>
-      </header>
+      </header>`;
 
-      <div class="body">
-        ${raw(f.share == null ? "" : `<div class="strip"><div class="bar" data-tone="${f.tone === "calm" ? "" : "accent"}"><i style="transform:scaleX(${f.share})"></i></div></div>`)}
+    const main = html`${raw(f.share == null ? "" : `<div class="strip"><div class="bar" data-tone="${f.tone === "calm" ? "" : "accent"}"><i style="transform:scaleX(${f.share})"></i></div></div>`)}
 
         <section class="pane">
           <div class="label">Сколько осталось</div>
@@ -78,11 +77,6 @@ export default {
         </section>
 
         <section class="pane">
-          <div class="label">Откуда знаю</div>
-          <p class="prose">${provenance}</p>
-        </section>
-
-        <section class="pane">
           <div class="label">Где лежит</div>
           <div class="chips">
             ${raw(zoneNames(state).map((z) => `<button class="chip" type="button" data-act="zone" data-zone="${esc(z)}" aria-pressed="${entry.zone === z}">${esc(z)}</button>`).join(""))}
@@ -96,23 +90,23 @@ export default {
           </div>
         </section>
 
-        ${raw(cookable.length ? `<section class="pane">
-          <div class="label">Успеть съесть</div>
-          ${cookable.map((r) => `<a class="row row--tight" href="#recipe/${esc(r.recipe.id)}">
-            <span class="row-main"><span class="row-name">${esc(r.recipe.name)}</span>
-            <span class="row-why">${r.recipe.minutes ? `${r.recipe.minutes} мин · ` : ""}${r.match.ready ? "всё есть" : `не хватает ${r.match.missing.length}`}</span></span>
-          </a>`).join("")}
-        </section>` : "")}
-      </div>
+        `;
 
-      <div class="foot foot--wrap">
+    const foot = html`<div class="foot foot--wrap">
         <button class="btn btn--grow" type="button" data-act="toList">В список</button>
         <button class="btn btn--ghost" type="button" data-act="opened">${entry.opened ? "Закрыт" : "Открыл"}</button>
         <button class="btn btn--ghost" type="button" data-act="ate">Съел</button>
         <button class="btn btn--ghost btn--danger" type="button" data-act="threw">Выбросил</button>
         <button class="btn btn--ghost btn--danger" type="button" data-act="remove">Удалить</button>
-      </div>
-    </main>`;
+      </div>`;
+
+    return cardScreen({
+      head,
+      main,
+      foot,
+      label: "Про этот запас",
+      side: (cls) => sideOf(entry, { now, f, cookable, provenance }, cls),
+    });
   },
 
   actions: {
@@ -279,4 +273,38 @@ function finish(outcome, message) {
 
   toast(message);
   location.hash = "stock";
+}
+
+/**
+ * Колонка справа: срок, происхождение записи и что успеть приготовить.
+ *
+ * «Откуда знаю» и рецепты — это контекст, а не работа: их читают, решая, что
+ * делать с продуктом, и в колонке они не отодвигают вниз то, чем этот продукт
+ * правят.
+ */
+function sideOf(entry, { now, f, cookable, provenance }, cls) {
+  const rows = [
+    ["Осталось", M.expiryLabel(entry, now)],
+    ["Зона", cap(entry.zone ?? "")],
+    ["Сколько", entry.qty ?? ""],
+    ["Цена", entry.price ? fmtMoney(entry.price) : ""],
+    ["Куплено", entry.boughtAt ? fmtDate(entry.boughtAt) : ""],
+  ].filter(([, value]) => value);
+
+  return html`<div class="${cls}">
+      <div class="label">Срок</div>
+      ${raw(f.share == null ? "" : `<div class="bar" data-tone="${f.tone === "calm" ? "" : "accent"}"><i style="transform:scaleX(${f.share})"></i></div>`)}
+      ${raw(rows.map(([name, value]) => `<div class="insp-row"><span>${esc(name)}</span><span class="tdim">${esc(String(value))}</span></div>`).join(""))}
+    </div>
+    <div class="${cls}">
+      <div class="label">Откуда знаю</div>
+      <p class="prose">${provenance}</p>
+    </div>
+    ${raw(cookable.length ? `<div class="${cls}">
+      <div class="label">Успеть съесть</div>
+      ${cookable.map((r) => `<a class="insp-row" href="#recipe/${esc(r.recipe.id)}">
+        <span>${esc(r.recipe.name)}</span>
+        <span class="tdim">${r.match.ready ? "всё есть" : `не хватает ${r.match.missing.length}`}</span>
+      </a>`).join("")}
+    </div>` : "")}`;
 }
