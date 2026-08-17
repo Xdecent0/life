@@ -1,44 +1,101 @@
-// Проекты: зеркало доски плюс то, что ещё не доехало до волта.
+// Что происходит с правкой между телефоном и волтом.
 //
-// Своих данных приложение не держит — ровно как доска. Снимок `доска.json`
-// собирается на компьютере из заметок и читается здесь как есть. Единственное,
-// что приложение пишет, — правки: «закрой эту веху», «дело сделано». Они уезжают
-// записями, мост применяет их к заметкам, и следующий снимок приходит уже
-// с ними. Волт остаётся единственным хранилищем.
+// Экран у этого приложения не свой: это та же доска проектов, перенесённая из
+// волта файлом (см. tools/port_board.mjs). Здесь только то, чего у доски на
+// компьютере нет и быть не может — жизнь правки, которая уехала, но ещё не
+// доехала.
 //
-// Отсюда главное правило экрана: **правка, которую волт ещё не видел, показана
-// как ожидающая, а не как сделанная.** Галочка, поставленная в метро, и галочка,
-// доехавшая до файла, — разные вещи, и врать про это нельзя.
+// На компьютере доска правит заметку и перечитывает волт: увиденное всегда
+// равно тому, что лежит в файлах. С телефона волт недостижим, поэтому правка
+// ложится в очередь, а на экран накладывается поверх снимка — и рядом честно
+// написано, что она ещё в пути.
 
-import { DAY, today, daysBetween, plural } from "../../../core/time.js";
-import { uid } from "../../../core/state.js";
+export const DAY = 86400000;
 
-export { today, daysBetween, plural };
-
-export const STATUSES = ["идея", "активно", "пауза", "готово"];
-
-/** Порядок разделов: сначала то, что в работе. */
-const GROUP_ORDER = ["в работе", "на паузе", "беклог", "готово", "закрыт"];
-
-export const boardOf = (state) => state.board ?? null;
+/** Форма состояния, в котором ещё ничего не приезжало. */
+export const blank = () => ({ version: 1, board: null, edits: [], queue: [], syncedAt: null });
 
 export const alive = (rows = []) => rows.filter((r) => !r.deleted);
-
-/* ---------- правки ---------- */
-
-/**
- * Новая правка. `что` — имя операции из белого списка доски, остальное — её
- * поля; ядро довезёт запись, мост отдаст её `board_server.OPS`.
- */
-export function change(kind, fields) {
-  return { id: uid("e"), что: kind, ...fields, применено: null, ответ: "", at: Date.now() };
-}
 
 /** Правки, которых волт ещё не видел. */
 export const waiting = (state) => alive(state.edits).filter((e) => e.применено === null);
 
 /** Отбитые: строка разошлась, поле не то, файла нет. Их надо показать. */
 export const refused = (state) => alive(state.edits).filter((e) => e.применено === false);
+
+let counter = 0;
+
+/**
+ * Новая правка. `что` — имя операции из белого списка доски, остальное — её
+ * поля: мост отдаёт запись прямо в `board_server.OPS`, ничего не переводя.
+ */
+export function change(kind, fields, now = Date.now()) {
+  counter += 1;
+  return { id: `e${now.toString(36)}${counter.toString(36)}`, что: kind, ...fields, применено: null, ответ: "", at: now };
+}
+
+/**
+ * Снимок с наложенными правками, которые ещё в пути.
+ *
+ * Доска рисует из того, что ей дали, и знать про очередь не должна — иначе
+ * пришлось бы править перенесённый файл, а он должен оставаться тем же самым.
+ * Поэтому очередь накладывается здесь, до того как снимок к ней попадёт.
+ */
+export function withPending(board, edits = []) {
+  if (!board) return null;
+  const next = structuredClone(board);
+
+  for (const edit of edits) {
+    if (edit.что === "веха") {
+      const project = next.проекты?.find((p) => p.путь === edit.проект || p.ид === edit.проект);
+      const milestone = project?.вехи?.find((m) => m.строка === edit.строка);
+      if (milestone) milestone.закрыта = Boolean(edit.закрыта);
+      continue;
+    }
+
+    if (edit.что === "дело") {
+      const deed = next.дела?.find((d) => d.ид === edit.ид);
+      if (deed && "сделано" in edit) deed.сделано = Boolean(edit.сделано);
+      continue;
+    }
+
+    if (edit.что === "поле") {
+      const project = next.проекты?.find((p) => p.путь === edit.проект || p.ид === edit.проект);
+      if (project) project[edit.ключ] = edit.значение;
+    }
+
+    /* Операции, которые заводят новое — проект, дело, пространство, — поверх
+       снимка не показываются: у них ещё нет ни строки, ни ид, которые придумает
+       волт. Они появятся следующим снимком, и интерфейс так и говорит. */
+  }
+
+  return next;
+}
+
+/**
+ * Что показывает метка волта в шапке.
+ *
+ * На компьютере там имя волта и «читается и пишется». Здесь волта нет — есть
+ * репозиторий и очередь, и врать про это в единственном месте, которое доска
+ * отвела под правду о связи, было бы худшим из вариантов.
+ */
+export function vaultLabel(state) {
+  if (!state.board) return "снимок не приезжал";
+  const n = waiting(state).length;
+  const bad = refused(state).length;
+  if (bad) return `репозиторий · отбито: ${bad}`;
+  return n ? `репозиторий · ждут волта: ${n}` : "репозиторий";
+}
+
+/**
+ * Дешёвый отпечаток — тем же способом, каким доска следит за волтом.
+ *
+ * Меняется, когда приехал новый снимок или встала в очередь правка, и доска
+ * перерисовывается сама, без кнопки.
+ */
+export function fingerprint(state) {
+  return `${state.board?.собрано ?? "-"}:${state.syncedAt ?? 0}:${waiting(state).length}:${refused(state).length}`;
+}
 
 /**
  * Ответ приехал — запись отслужила. Через месяц она становится обычным
@@ -55,128 +112,22 @@ export function foldAnswered(entries, days = 30, now = Date.now()) {
   });
 }
 
-/* ---------- проекты ---------- */
-
-export function projects(state) {
-  return boardOf(state)?.проекты ?? [];
-}
-
-export function find(state, id) {
-  return projects(state).find((p) => p.ид === id) ?? null;
-}
-
 /**
- * Вехи проекта с наложенными правками, которые ещё в пути.
+ * Поиск по снимку — вместо поиска по всему волту, которого здесь нет.
  *
- * Правка адресует веху номером строки в заметке — так же, как это делает доска,
- * и по той же причине: у вехи нет своего идентификатора, она просто строка
- * в файле.
+ * На компьютере доска спрашивает сервер и получает имена всех 2300 заметок.
+ * С телефона доступны только проекты и дела из снимка; отвечать на «найдено»
+ * тишиной было бы честнее всего, но бесполезно, а притворяться, что искали
+ * везде, — нечестно. Поэтому ищем по тому, что есть.
  */
-export function milestonesOf(state, project) {
-  const pending = new Map(
-    waiting(state)
-      .filter((e) => e.что === "веха" && e.проект === project.ид)
-      .map((e) => [e.строка, e])
-  );
+export function findInSnapshot(board, query) {
+  const needle = String(query ?? "").trim().toLowerCase();
+  if (!board || needle.length < 2) return [];
 
-  return (project.вехи ?? []).map((m) => {
-    const edit = pending.get(m.строка);
-    return edit ? { ...m, закрыта: Boolean(edit.закрыта), ждёт: true } : m;
-  });
-}
+  const hit = (v) => String(v ?? "").toLowerCase().includes(needle);
 
-/** Доля закрытого — по тому, что видно сейчас, включая ожидающие правки. */
-export function progress(milestones) {
-  const total = milestones.length;
-  if (!total) return null;
-  const done = milestones.filter((m) => m.закрыта).length;
-  return { done, total, share: done / total };
-}
-
-export function statusOf(state, project) {
-  const edit = waiting(state).find(
-    (e) => e.что === "поле" && e.ключ === "статус" && e.проект === project.ид
-  );
-  return edit ? { value: edit.значение, ждёт: true } : { value: project.статус, ждёт: false };
-}
-
-/* ---------- дела ---------- */
-
-export function deeds(state) {
-  const pending = new Map(
-    waiting(state).filter((e) => e.что === "дело").map((e) => [e.ид, e])
-  );
-
-  return (boardOf(state)?.дела ?? []).map((d) => {
-    const edit = pending.get(d.ид);
-    return edit ? { ...d, сделано: Boolean(edit.сделано), ждёт: true } : d;
-  });
-}
-
-export const open = (state) => deeds(state).filter((d) => !d.сделано);
-
-/** Просрочено — по дате, а не по настроению. Дело без срока не просрочено. */
-export function overdue(deed, now = today()) {
-  if (!deed.срок || deed.сделано) return false;
-  return Date.parse(deed.срок) <= now;
-}
-
-/* ---------- что стоит и что почти готово ---------- */
-
-/* Те же две подсказки, что даёт доска, и по тем же порогам: проект без движения
-   дольше трёх недель и проект, где осталась одна веха. Считать их иначе значило
-   бы завести второй ответ на один вопрос. */
-export const STALE_DAYS = 21;
-
-export const stalled = (state) =>
-  projects(state).filter((p) => p.статус === "активно" && (p.дней_без_движения ?? 0) >= STALE_DAYS);
-
-export const almostDone = (state) =>
-  projects(state).filter(
-    (p) => p.статус === "активно" && p.вехи_всего > 1 && p.вехи_всего - p.вехи_закрыто === 1
-  );
-
-/* ---------- разрезы ---------- */
-
-/**
- * Разделы — слово из шапки карточки, и секция существует ровно пока в ней
- * кто-то лежит. Порядок задан волтом, а не алфавитом: алфавит не догадается,
- * что «Главное сейчас» выше «Фона».
- */
-export function groupBy(state, cut = "раздел") {
-  const rows = projects(state);
-  const order = boardOf(state)?.разделы ?? [];
-  const buckets = new Map();
-
-  for (const p of rows) {
-    const name = (cut === "раздел" ? p.раздел : cut === "область" ? (p.области ?? [])[0] : p.группа) || fallback(cut);
-    if (!buckets.has(name)) buckets.set(name, []);
-    buckets.get(name).push(p);
-  }
-
-  const rank = (name) => {
-    const declared = cut === "раздел" ? order.indexOf(name) : GROUP_ORDER.indexOf(name);
-    return declared === -1 ? 999 : declared;
-  };
-
-  return [...buckets.entries()]
-    .map(([name, items]) => ({ name, items: items.sort(byUrgency) }))
-    .sort((a, b) => rank(a.name) - rank(b.name) || a.name.localeCompare(b.name, "ru"));
-}
-
-const fallback = (cut) => (cut === "раздел" ? "без раздела" : cut === "область" ? "без области" : "без статуса");
-
-/* Стоящее — выше: проект, к которому три недели не прикасались, это то, о чём
-   человек и открывает список. Дальше по проценту: почти готовое — следом. */
-const byUrgency = (a, b) =>
-  (b.дней_без_движения ?? 0) - (a.дней_без_движения ?? 0) ||
-  (b.процент ?? 0) - (a.процент ?? 0) ||
-  String(a.имя).localeCompare(String(b.имя), "ru");
-
-/** Как давно собран снимок — чтобы экран не притворялся живым. */
-export function snapshotAge(state, now = Date.now()) {
-  const at = boardOf(state)?.собрано;
-  if (!at) return null;
-  const parsed = Date.parse(at);
-  return Number.isFinite(parsed) ? Math.max(0, Math.round((now - parsed) / DAY)) : null;
+  return (board.проекты ?? [])
+    .filter((p) => hit(p.имя) || hit(p.цель) || hit(p.аппетит))
+    .slice(0, 40)
+    .map((p) => ({ имя: p.имя, путь: p.путь, папка: (p.путь ?? "").split("/").slice(0, -1).join("/") }));
 }

@@ -7,13 +7,12 @@
 // к заметкам теми же операциями, что и сама доска.
 
 import { declare } from "../../core/app.js";
-import { EMPTY_STATE } from "./lib/store.js";
-import { foldAnswered } from "./lib/model.js";
+import { blank, foldAnswered } from "./lib/model.js";
 
 export default declare({
   key: "projects",
   name: "Проекты",
-  empty: EMPTY_STATE,
+  empty: blank(),
 
   paths: {
     board: "Проекты/доска.json",

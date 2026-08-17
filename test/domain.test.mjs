@@ -1174,7 +1174,8 @@ const BOARD = {
   собрано: "2026-08-17",
   проекты: [
     {
-      ид: "10 - Проекты/Активные/A.md", имя: "A", статус: "активно", группа: "в работе",
+      ид: "10 - Проекты/Активные/A.md", путь: "10 - Проекты/Активные/A.md",
+      имя: "Альфа", статус: "активно", группа: "в работе",
       раздел: "Главное сейчас", процент: 33, вехи_закрыто: 1, вехи_всего: 3, дней_без_движения: 30,
       вехи: [
         { текст: "первая", закрыта: true, строка: 10 },
@@ -1183,7 +1184,8 @@ const BOARD = {
       ],
     },
     {
-      ид: "10 - Проекты/Активные/B.md", имя: "B", статус: "активно", группа: "в работе",
+      ид: "10 - Проекты/Активные/B.md", путь: "10 - Проекты/Активные/B.md",
+      имя: "Бета", статус: "активно", группа: "в работе",
       раздел: "", процент: 66, вехи_закрыто: 2, вехи_всего: 3, дней_без_движения: 2, вехи: [],
     },
   ],
@@ -1191,21 +1193,50 @@ const BOARD = {
   разделы: ["Главное сейчас"],
 };
 
-const board = (edits = []) => ({ board: BOARD, edits });
+const board = (edits = []) => ({ ...PJ.blank(), board: BOARD, edits });
 
-test("проекты: правка, которую волт ещё не видел, показана как ожидающая", () => {
+test("проекты: правка, которую волт ещё не видел, лежит поверх снимка", () => {
   const state = board([
     { id: "e1", что: "веха", проект: "10 - Проекты/Активные/A.md", строка: 11, текст: "вторая", закрыта: true, применено: null },
   ]);
 
-  const shown = PJ.milestonesOf(state, BOARD.проекты[0]);
-  assert.equal(shown[1].закрыта, true);
-  assert.equal(shown[1].ждёт, true, "галочка в метро и галочка в файле — разные вещи");
+  const shown = PJ.withPending(state.board, PJ.waiting(state));
+  assert.equal(shown.проекты[0].вехи[1].закрыта, true);
+  // Наложение — копия: сам снимок остаётся тем, что приехало из волта.
+  assert.equal(state.board.проекты[0].вехи[1].закрыта, false);
 
-  // Ответ пришёл — «ждёт» снимается, а состояние теперь диктует снимок.
+  // Ответ пришёл — правка больше не ждёт, и экран снова диктует снимок.
   const answered = board([{ ...state.edits[0], применено: true, ответ: "веха обновлена" }]);
-  assert.equal(PJ.milestonesOf(answered, BOARD.проекты[0])[1].закрыта, false);
   assert.equal(PJ.waiting(answered).length, 0);
+  assert.equal(PJ.withPending(answered.board, PJ.waiting(answered)).проекты[0].вехи[1].закрыта, false);
+});
+
+test("проекты: дело и поле накладываются так же, а новое — не выдумывается", () => {
+  const state = board([
+    { id: "e1", что: "дело", ид: "t1", сделано: true, применено: null },
+    { id: "e2", что: "поле", проект: "10 - Проекты/Активные/B.md", ключ: "статус", значение: "пауза", применено: null },
+    { id: "e3", что: "дело+", текст: "новое дело", применено: null },
+  ]);
+
+  const shown = PJ.withPending(state.board, PJ.waiting(state));
+  assert.equal(shown.дела[0].сделано, true);
+  assert.equal(shown.проекты[1].статус, "пауза");
+  // У заведённого дела ещё нет ид, который придумает волт: рисовать его нечем.
+  assert.equal(shown.дела.length, 1);
+});
+
+test("проекты: метка связи говорит про очередь, а не про волт", () => {
+  assert.equal(PJ.vaultLabel(PJ.blank()), "снимок не приезжал");
+  assert.equal(PJ.vaultLabel(board()), "репозиторий");
+  assert.equal(PJ.vaultLabel(board([{ id: "e1", применено: null }])), "репозиторий · ждут волта: 1");
+  assert.equal(PJ.vaultLabel(board([{ id: "e1", применено: false, ответ: "не то" }])), "репозиторий · отбито: 1");
+});
+
+test("проекты: отпечаток меняется и от нового снимка, и от новой правки", () => {
+  const quiet = board();
+  assert.equal(PJ.fingerprint(quiet), PJ.fingerprint(board()));
+  assert.notEqual(PJ.fingerprint(quiet), PJ.fingerprint(board([{ id: "e1", применено: null }])));
+  assert.notEqual(PJ.fingerprint(quiet), PJ.fingerprint({ ...quiet, syncedAt: 1 }));
 });
 
 test("проекты: отбитая правка не теряется и несёт причину", () => {
@@ -1232,24 +1263,11 @@ test("проекты: ответившая правка через месяц с
   assert.equal(folded[2].deleted, undefined, "неотвеченная правка не хоронится никогда");
 });
 
-test("проекты: разделы идут в порядке волта, стоящее — выше", () => {
-  const groups = PJ.groupBy(board(), "раздел");
-  assert.deepEqual(groups.map((g) => g.name), ["Главное сейчас", "без раздела"]);
-
-  const all = PJ.groupBy(board(), "группа")[0].items.map((p) => p.имя);
-  assert.deepEqual(all, ["A", "B"], "тридцать дней без движения — выше двух");
-});
-
-test("проекты: подсказки те же, что у доски, и по тем же порогам", () => {
-  assert.deepEqual(PJ.stalled(board()).map((p) => p.имя), ["A"]);
-  assert.deepEqual(PJ.almostDone(board()).map((p) => p.имя), ["B"]);
-});
-
-test("проекты: дело без срока не просрочено", () => {
-  const now = Date.UTC(2026, 7, 17);
-  assert.equal(PJ.overdue({ срок: "2026-08-01", сделано: false }, now), true);
-  assert.equal(PJ.overdue({ срок: "", сделано: false }, now), false);
-  assert.equal(PJ.overdue({ срок: "2026-08-01", сделано: true }, now), false);
+test("проекты: поиск идёт по снимку и честно ограничен им", () => {
+  assert.deepEqual(PJ.findInSnapshot(BOARD, "льф").map((r) => r.имя), ["Альфа"]);
+  assert.equal(PJ.findInSnapshot(BOARD, "льф")[0].путь, "10 - Проекты/Активные/A.md");
+  assert.deepEqual(PJ.findInSnapshot(BOARD, "а"), [], "по одной букве не ищем");
+  assert.deepEqual(PJ.findInSnapshot(null, "льф"), [], "снимка нет — искать негде");
 });
 
 test("синк: курсы читаются, а пустой ответ не стирает вчерашние", () => {
