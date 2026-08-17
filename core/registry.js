@@ -42,10 +42,18 @@ export const APPS = [
   {
     key: "clean",
     name: "Уборка",
-    what: "Что пора делать по дому",
-    href: null,
+    what: "Карта дома: что убрано и до чего пора",
+    href: "../apps/clean/",
     icon: "i-check",
-    ready: false,
+    ready: true,
+    count: (state) => {
+      const spots = (state.spots ?? []).filter((s) => !s.deleted);
+      if (!spots.length) return "дом ещё не описан";
+      const day = 86400000;
+      const now = Math.floor(Date.now() / day) * day;
+      const due = spots.filter((s) => s.lastDone && s.every && s.lastDone + s.every * day < now).length;
+      return due ? `${due} ждёт` : `${spots.length} поверхностей, всё в порядке`;
+    },
   },
   {
     key: "places",

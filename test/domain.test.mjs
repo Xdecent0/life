@@ -19,6 +19,7 @@ import * as log from "../core/log.js";
 import { parseTable, parseShelf, parseSynonyms, parseZones, parseRecipe } from "../core/vault.js";
 import { toStockItem } from "../apps/kitchen/lib/receipt.js";
 import * as TH from "../apps/things/lib/model.js";
+import * as CL from "../apps/clean/lib/model.js";
 import { priceHistory, bestStore, trackingSummary, weekStart, staples } from "../apps/kitchen/lib/planning.js";
 import { SEED_SHELF, SEED_SYNONYMS, SEED_JUNK, SEED_AISLES } from "../apps/kitchen/lib/store.js";
 
@@ -1017,4 +1018,42 @@ test("вещи без места собираются отдельной гру�
   assert.deepEqual(groups.map((g) => g.name), ["кухня", "без места"]);
   // Место, которого нет в справочнике, — не повод спрятать вещь.
   assert.equal(groups[1].entries.length, 2);
+});
+
+test("уборка: неизвестно — это не «чисто» и не «грязно»", () => {
+  const now = Date.UTC(2026, 7, 17);
+  const day = 86400000;
+
+  const never = { id: "1", room: "kitchen", name: "вытяжка", every: 60, lastDone: null };
+  assert.equal(CL.stateOf(never, now).key, "неизвестно");
+  assert.equal(CL.isDue(never, now), false, "про что не знаем — по тому не ругаемся");
+
+  const fresh = { id: "2", room: "kitchen", name: "пол", every: 4, lastDone: now - day };
+  assert.equal(CL.stateOf(fresh, now).key, "чисто");
+
+  const due = { id: "3", room: "kitchen", name: "плита", every: 3, lastDone: now - 5 * day };
+  assert.equal(CL.stateOf(due, now).key, "пора");
+
+  // Просрочено больше, чем длится сам цикл, — это уже другая история.
+  const long = { id: "4", room: "bath", name: "ванна", every: 5, lastDone: now - 20 * day };
+  assert.equal(CL.stateOf(long, now).key, "давно");
+});
+
+test("состояние комнаты считается по отмеченным, а не по всем", () => {
+  const now = Date.UTC(2026, 7, 17);
+  const day = 86400000;
+  const state = {
+    spots: [
+      { id: "1", room: "kitchen", name: "пол", every: 4, lastDone: now - day },
+      { id: "2", room: "kitchen", name: "плита", every: 3, lastDone: null },
+      { id: "3", room: "kitchen", name: "раковина", every: 3, lastDone: null },
+    ],
+  };
+
+  const health = CL.roomHealth(state, "kitchen", now);
+  // Одна убранная и две неотмеченные — это не «всё в порядке».
+  assert.equal(health.share, 1);
+  assert.equal(health.unknown, 2);
+  assert.equal(health.total, 3);
+  assert.equal(health.due, 0);
 });

@@ -3545,3 +3545,149 @@ kbd {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------- план дома ---------- */
+
+/* A floor plan, not a list. Rooms sit where the reference table puts them, so
+   the screen matches how a person thinks about their own flat: not «17 задач»,
+   but «на кухне пол и плита». */
+.plan {
+  display: grid;
+  grid-template-columns: repeat(var(--plan-cols, 4), minmax(0, 1fr));
+  gap: 10px;
+  padding: 6px var(--pad) 4px;
+  align-items: start;
+}
+
+.room {
+  min-width: 0;
+}
+
+.room {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.room-open {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 13px 14px;
+  background: none;
+  border: 0;
+}
+
+.room[data-due="1"] {
+  border-color: rgba(193, 72, 31, 0.28);
+  background: var(--alarm-bg);
+}
+
+.room-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.room-name {
+  font-weight: 600;
+  font-size: var(--t-item);
+}
+
+.room-sum {
+  margin-left: auto;
+  font-size: var(--t-meta);
+  white-space: nowrap;
+}
+
+/* The room meter is the one number the plan is read for, so it is a bar rather
+   than a percentage: a glance answers it, a figure has to be interpreted. */
+.meter--room {
+  width: 100%;
+  height: 5px;
+}
+
+.meter--room[data-tone="unknown"] {
+  background: repeating-linear-gradient(90deg, var(--line) 0 5px, transparent 5px 10px);
+}
+
+.room-spots {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.spot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  min-width: 0;
+}
+
+.spot-tick {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--line-firm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  background: var(--surface);
+}
+
+.spot[data-tone="warn"] .spot-tick,
+.spot[data-tone="bad"] .spot-tick {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+}
+
+.spot-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.spot-name {
+  font-size: var(--t-body);
+}
+
+.spot-why {
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+}
+
+/* The row of things that are due: the answer before the map, for the evening
+   when the question is only «что успеть». */
+.duebar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  align-items: center;
+  padding: 2px var(--pad) 10px;
+}
+
+.plan-note {
+  padding: 10px var(--pad) 0;
+}
+
+@media (max-width: 700px) {
+  /* A four-column plan on a phone makes five unreadable stamps. The rooms keep
+     their order and give up their arrangement. */
+  .plan {
+    grid-template-columns: 1fr;
+  }
+
+  .room {
+    grid-column: auto !important;
+    grid-row: auto !important;
+  }
+}
