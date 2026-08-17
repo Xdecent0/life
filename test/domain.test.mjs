@@ -1497,3 +1497,79 @@ test("пульт: отметка Проектов — правка в очере
   // Волт отсюда недостижим: снимок не трогаем, иначе экран покажет ложь.
   assert.equal(state.board.дела[0].сделано, false);
 });
+
+/* ------------------------------------------------------ вещи: гарантии */
+
+test("вещи: гарантии раскладываются по тому, успеваешь ли ты что-то сделать", async () => {
+  const T = await import("../apps/things/lib/model.js");
+  const day = 86400000;
+  const now = T.today();
+  const at = (days) => now + days * day;
+
+  const things = [
+    { id: "a", name: "Ноутбук", warrantyUntil: at(10) },
+    { id: "b", name: "Чайник", warrantyUntil: at(-5) },
+    { id: "c", name: "Пылесос", warrantyUntil: at(400) },
+    { id: "d", name: "Монитор", price: 9000 },
+    { id: "e", name: "Ложка", price: 40 },
+    { id: "f", name: "Дрель", warrantyUntil: at(2) },
+  ];
+
+  const groups = T.warranties(things, now);
+  const by = (key) => groups.find((g) => g.key === key)?.rows.map((t) => t.id) ?? [];
+
+  // Ближайшее кончается первым: у этого списка одна работа — успеть.
+  assert.deepEqual(by("soon"), ["f", "a"]);
+  assert.deepEqual(by("gone"), ["b"]);
+  assert.deepEqual(by("long"), ["c"]);
+
+  // «Без гарантии» — не корзина для всего: ложке дата и не нужна.
+  assert.deepEqual(by("none"), ["d"]);
+
+  // Пустые группы не показываются вовсе.
+  assert.equal(T.warranties([{ id: "x", name: "Табуретка" }], now).length, 0);
+
+  // Под защитой — только то, что ещё действует.
+  assert.equal(T.covered([{ price: 100, warrantyUntil: at(5) }, { price: 900, warrantyUntil: at(-1) }], now), 100);
+});
+
+/* ------------------------------------------------- места: куда сходить */
+
+test("места: «куда сходить» отвечает тремя разными причинами, не одной", async () => {
+  const P = await import("../apps/places/lib/model.js");
+  const day = 86400000;
+  const now = P.today();
+
+  const state = { places: [
+    { id: "p1", name: "Кофейня", area: "Центр", every: 7, visits: [now - 30 * day] },
+    { id: "p2", name: "Книжный", area: "Центр", visits: [] },
+    { id: "p3", name: "Бар", area: "Север", rating: 5, visits: [now - 200 * day] },
+    { id: "p4", name: "Аптека", area: "Север", visits: [now - 2 * day] },
+    { id: "p5", name: "Музей", area: "Центр", rating: 3, visits: [now - 300 * day] },
+  ] };
+
+  const groups = P.toGo(state, now);
+  const by = (key) => groups.find((g) => g.key === key)?.rows.map((p) => p.id) ?? [];
+
+  assert.deepEqual(by("calls"), ["p1"], "ритм ставил человек — это его же просьба");
+  assert.deepEqual(by("never"), ["p2"]);
+  assert.deepEqual(by("missed"), ["p3"], "любимое и давно; тройка сюда не идёт");
+
+  // Место, куда ходил на днях, не зовёт никуда.
+  assert.equal(groups.every((g) => !g.rows.some((p) => p.id === "p4")), true);
+
+  assert.deepEqual(P.areasOf(state.places), ["Север", "Центр"]);
+});
+
+/* --------------------------------------------- проекты: лента сделанного */
+
+test("проекты: лента сделанного идёт свежим сверху и молчит про недатированное", () => {
+  const rows = PJ.done({ вехи: [
+    { текст: "первая", закрыта: true, дата: "2026-01-10" },
+    { текст: "вторая", закрыта: true, дата: "2026-08-01" },
+    { текст: "третья", закрыта: false, дата: "" },
+    { текст: "когда-то", закрыта: true },
+  ] });
+
+  assert.deepEqual(rows.map((m) => m.текст), ["вторая", "первая"]);
+});

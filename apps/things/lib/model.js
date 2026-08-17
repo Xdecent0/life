@@ -108,3 +108,41 @@ export function groupBy(things, how, { kinds = [], places = [] } = {}, now = tod
 export function worth(things) {
   return things.reduce((sum, t) => sum + (Number(t.price) || 0), 0);
 }
+
+/* ---------- гарантии ---------- */
+
+/** Месяц — окно, в котором ещё можно успеть сходить, пока меняют. */
+export const WARRANTY_SOON = 30;
+
+/**
+ * Гарантии по срокам: горит · кончилась · есть ещё · без гарантии.
+ *
+ * Данные лежали с самого начала, а показывались одной подсветкой в общем списке,
+ * то есть отвечали только на «эта вещь ещё на гарантии?». Вопрос, ради которого
+ * гарантии вообще записывают, другой: «по чему я успеваю сходить прямо сейчас».
+ *
+ * «Без гарантии» — не мусорная корзина: туда попадает только то, что дороже
+ * порога. Ложка без гарантии — это норма, а ноутбук без неё — забытое поле.
+ */
+export function warranties(things, now = today(), { rich = 1000 } = {}) {
+  const left = (t) => daysBetween(now, t.warrantyUntil);
+  const withDate = things.filter((t) => t.warrantyUntil);
+
+  const soon = withDate.filter((t) => left(t) >= 0 && left(t) <= WARRANTY_SOON);
+  const gone = withDate.filter((t) => left(t) < 0);
+  const long = withDate.filter((t) => left(t) > WARRANTY_SOON);
+  const none = things.filter((t) => !t.warrantyUntil && Number(t.price) >= rich);
+
+  const byLeft = (a, b) => left(a) - left(b);
+
+  return [
+    { key: "soon", name: "Кончается", note: "успеть, пока меняют", rows: soon.sort(byLeft) },
+    { key: "gone", name: "Кончилась", note: "чинить теперь за свои", rows: gone.sort(byLeft).reverse() },
+    { key: "long", name: "Ещё есть", note: "лежит и ждёт", rows: long.sort(byLeft) },
+    { key: "none", name: "Без гарантии", note: `дороже ${rich} — а даты нет`, rows: none.sort((a, b) => (b.price ?? 0) - (a.price ?? 0)) },
+  ].filter((g) => g.rows.length);
+}
+
+/** Сколько денег стоит за живыми гарантиями — то, что можно ещё вернуть. */
+export const covered = (things, now = today()) =>
+  worth(things.filter((t) => t.warrantyUntil && daysBetween(now, t.warrantyUntil) >= 0));

@@ -15,6 +15,7 @@ import * as M from "./lib/model.js";
 
 import things from "./screens/things.js";
 import thing from "./screens/thing.js";
+import warranty from "./screens/warranty.js";
 import settings from "./screens/settings.js";
 
 log.captureGlobals();
@@ -27,9 +28,14 @@ applyCurrency(get());
 mountIcons();
 
 boot({
-  screens: { things, thing, settings },
-  nav: [{ route: "things", label: "Вещи", icon: "i-stock" }],
+  screens: { things, thing, warranty, settings },
+  nav: [
+    { route: "things", label: "Вещи", icon: "i-stock" },
+    { route: "warranty", label: "Гарантии", icon: "i-receipts" },
+  ],
   home: "things",
-  badge: (route, state) => (route === "things" ? M.alive(state).filter((t) => M.warrantyRunningOut(t)).length : 0),
+  /* Значок висит там, где по нему и пойдут: кончающаяся гарантия — повод
+     открыть гарантии, а не общий список. */
+  badge: (route, state) => (route === "warranty" ? M.alive(state).filter((t) => M.warrantyRunningOut(t)).length : 0),
   afterRender: applyCurrency,
 });

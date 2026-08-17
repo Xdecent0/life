@@ -90,6 +90,32 @@ function subPane(p) {
   </section>`;
 }
 
+/**
+ * Лента сделанного — то, за чем возвращаются к проекту, который долго стоит.
+ *
+ * Даты закрытия лежат в тех же строках заметки; список вех показывал их по одной
+ * справа от галочки, то есть отвечал «что осталось» и не отвечал «что я сделал».
+ */
+function doneBlock(p, cls) {
+  const rows = M.done(p);
+  if (!rows.length) return "";
+
+  const shown = rows.slice(0, 8);
+
+  return html`<div class="${cls}">
+    <div class="head-row">
+      <div class="label">Сделано</div>
+      <span class="tdim num">${rows.length}</span>
+    </div>
+    ${raw(shown.map((m) => `<div class="insp-row donerow" title="${esc(m.текст)}">
+      <span class="donerow-text">${esc(m.текст)}</span><span class="tdim num">${esc(m.дата)}</span>
+    </div>`).join(""))}
+    ${raw(rows.length > shown.length
+      ? `<p class="prose prose--muted">И ещё ${rows.length - shown.length} — в самой заметке.</p>`
+      : "")}
+  </div>`;
+}
+
 /* ---------- карточка ---------- */
 
 /* Блоки карточки одни и те же на обоих экранах, а обёртка разная: в колонке
@@ -217,6 +243,7 @@ export default {
       side: (cls) => html`${raw(progressBlock(p, cls))}
         ${raw(factsBlock(p, cls))}
         ${raw(waitBlock(p, cls))}
+        ${raw(doneBlock(p, cls))}
         ${raw(moveBlock(p, cls))}`,
     });
   },

@@ -137,3 +137,39 @@ export function best(places, limit = 5) {
     .sort((a, b) => (b.rating - a.rating) || ((lastVisit(b) ?? 0) - (lastVisit(a) ?? 0)))
     .slice(0, limit);
 }
+
+/* ---------- куда сходить ---------- */
+
+/**
+ * Ответ на вопрос, ради которого приложение открывают вечером в пятницу.
+ *
+ * Общий список отвечает «что у меня записано», а спрашивают другое: куда пойти
+ * сегодня. Порядок здесь — не алфавит и не рейтинг: сначала то, что само зовёт
+ * обратно по своему ритму, потом то, куда собирались и так и не дошли, потом
+ * любимое, где давно не был.
+ *
+ * Ничего не выдумывается: ритм ставит человек, «хочу» — это отсутствие визитов,
+ * а «давно не был» считается от последнего похода, и только для мест с оценкой.
+ */
+export function toGo(state, now = today(), { stale = 90 } = {}) {
+  const rows = alive(state);
+  const since = (p) => {
+    const at = lastVisit(p);
+    return at ? daysBetween(at, now) : null;
+  };
+
+  const calls = rows.filter((p) => callsBack(p, now));
+  const never = rows.filter((p) => !visitsOf(p).length);
+  const missed = rows.filter((p) =>
+    !calls.includes(p) && (p.rating ?? 0) >= 4 && (since(p) ?? 0) >= stale);
+
+  return [
+    { key: "calls", name: "Зовёт обратно", note: "по ритму, который ты сам поставил", rows: calls },
+    { key: "never", name: "Хотел и не дошёл", note: "записано, но ни разу", rows: never },
+    { key: "missed", name: "Любимое, но давно", note: `четыре звезды и больше ${stale} дней тишины`, rows: missed },
+  ].filter((g) => g.rows.length);
+}
+
+/** Районы, где такие места есть, — чтобы выбирать по «куда доеду». */
+export const areasOf = (rows) =>
+  [...new Set(rows.map((p) => (p.area ?? "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "ru"));

@@ -14,6 +14,7 @@ life.serve({
     "./lib/store.js",
     "./screens/things.js",
     "./screens/thing.js",
+    "./screens/warranty.js",
     "./screens/settings.js",
     "../../design/app.css",
     "../../design/things.css",

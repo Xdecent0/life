@@ -10,6 +10,7 @@ import * as M from "./lib/model.js";
 
 import places from "./screens/places.js";
 import place from "./screens/place.js";
+import togo from "./screens/togo.js";
 import settings from "./screens/settings.js";
 
 log.captureGlobals();
@@ -17,8 +18,11 @@ guardUnload();
 mountIcons();
 
 boot({
-  screens: { places, place, settings },
-  nav: [{ route: "places", label: "Места", icon: "i-store" }],
+  screens: { places, place, togo, settings },
+  nav: [
+    { route: "places", label: "Места", icon: "i-store" },
+    { route: "togo", label: "Куда сходить", icon: "i-track" },
+  ],
   home: "places",
-  badge: (route, state) => (route === "places" ? M.alive(state).filter((p) => M.callsBack(p)).length : 0),
+  badge: (route, state) => (route === "togo" ? M.alive(state).filter((p) => M.callsBack(p)).length : 0),
 });

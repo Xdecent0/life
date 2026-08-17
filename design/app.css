@@ -796,6 +796,26 @@ a {
   gap: 10px;
 }
 
+/* Строка в две строки: имя сверху, подробности под ним, ответ справа.
+   Той же формы строка проекта, гарантии и «куда сходить» — разные приложения,
+   одна привычка глаза, поэтому раскладка общая, а слова свои. */
+
+.row--twoline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "name right"
+    "meta right";
+  align-items: center;
+  gap: 3px 14px;
+}
+
+.row--twoline .row-name { grid-area: name; }
+.row--twoline .row-why { grid-area: meta; }
+
+.row--twoline > .tdim,
+.row--twoline > .btn { grid-area: right; }
+
 /* ---------- chips, extra ---------- */
 
 .chip--sm {

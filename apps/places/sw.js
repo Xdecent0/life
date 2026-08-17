@@ -14,6 +14,7 @@ life.serve({
     "./lib/store.js",
     "./screens/places.js",
     "./screens/place.js",
+    "./screens/togo.js",
     "./screens/settings.js",
     "../../design/app.css",
     "../../design/places.css",
