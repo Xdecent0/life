@@ -1804,3 +1804,88 @@ test("тишина: без ключа доступа молчание закон
   // Приложение, которое ни разу не синкали, молчит: «ни разу» — не поломка.
   assert.deepEqual(H.quiet({ syncedAt: null, queue: [] }, { now }), []);
 });
+
+/* ------------------------------------------------------------- потери */
+
+test("потери: считаются только явные ответы, а «кончился» — не ответ", async () => {
+  const W = await import("../apps/kitchen/lib/waste.js");
+  const now = Date.UTC(2026, 7, 15);
+  const d = (n) => now - n * DAY;
+
+  const state = {
+    stock: [
+      { id: "1", product: "Творог", outcome: "threw", closedAt: d(3), boughtAt: d(9), shelfDays: 5 },
+      { id: "2", product: "Творог", outcome: "threw", closedAt: d(20), boughtAt: d(27), shelfDays: 5 },
+      { id: "3", product: "Молоко", outcome: "used", closedAt: d(2), boughtAt: d(5) },
+      // Пустая банка без ответа: человек сказал, что банка пуста, а не что стало
+      // с содержимым. Такое не попадает ни в одну из двух стопок.
+      { id: "4", product: "Кефир", empty: true, closedAt: d(1) },
+      // За окном — не считается.
+      { id: "5", product: "Творог", outcome: "threw", closedAt: d(60), boughtAt: d(66), shelfDays: 5 },
+    ],
+    receipts: [
+      { store: "АТБ", at: d(30), lines: [{ product: "Творог", price: 60 }] },
+      { store: "АТБ", at: d(9), lines: [{ product: "Творог", price: 72 }] },
+    ],
+  };
+
+  const r = W.losses(state, { days: 30, now });
+
+  assert.equal(r.thrown, 2);
+  assert.equal(r.eaten, 1);
+  assert.equal(r.closed, 3);
+  // Меньше пяти закрытых позиций — доля была бы арифметикой, а не фактом.
+  assert.equal(r.share, null);
+  // По последней виденной цене, а не по первой.
+  assert.equal(r.money, 144);
+  assert.equal(r.unpriced, 0);
+  assert.equal(r.rows.length, 1);
+  assert.equal(r.rows[0].times, 2);
+});
+
+test("потери: вердикт молчит на одном разе и различает две ошибки", async () => {
+  const W = await import("../apps/kitchen/lib/waste.js");
+
+  // Один выброшенный огурец — не привычка, и говорить тут не о чем.
+  assert.equal(W.verdict({ times: 1, lived: 9, shelfDays: 5 }), null);
+
+  // Дожил до конца срока и всё равно не съеден — куплено больше, чем едят.
+  assert.match(W.verdict({ times: 3, lived: 7, shelfDays: 5 }), /бери меньше/);
+  assert.match(W.verdict({ times: 3, lived: 7, shelfDays: 5 }), /доживает/);
+
+  // Испортился раньше справочника — вопрос к хранению, а не к количеству.
+  assert.match(W.verdict({ times: 2, lived: 2, shelfDays: 7 }), /раньше срока/);
+
+  // Без дат — общая фраза, без придуманной причины.
+  assert.match(W.verdict({ times: 2, lived: null, shelfDays: null }), /не в первый раз/);
+});
+
+test("потери: предупреждение приходит в момент покупки, а не в отчёте", async () => {
+  const W = await import("../apps/kitchen/lib/waste.js");
+  const now = Date.UTC(2026, 7, 15);
+  const d = (n) => now - n * DAY;
+
+  const stock = [
+    { product: "Сливки", outcome: "threw", closedAt: d(4) },
+    { product: "сливки", outcome: "threw", closedAt: d(40) },
+    { product: "Сливки", outcome: "used", closedAt: d(6) },
+    // Старше горизонта хранения записей — молчит.
+    { product: "Сливки", outcome: "threw", closedAt: d(200) },
+  ];
+
+  assert.equal(W.tossCount(stock, "сливки", { now }), 2);
+  assert.match(W.tossNote(stock, "Сливки", { now }), /выбрасывал 2 раза/);
+  // Один раз — случайность, и строка списка про это молчит.
+  assert.equal(W.tossNote([{ product: "Сливки", outcome: "threw", closedAt: d(4) }], "Сливки", { now }), "");
+});
+
+test("потери: окно не уходит за горизонт, на котором записи ещё целы", async () => {
+  const W = await import("../apps/kitchen/lib/waste.js");
+  const now = Date.UTC(2026, 7, 15);
+
+  const r = W.losses({ stock: [], receipts: [] }, { days: 180, now });
+  // Дальше foldClosed сворачивает записи в надгробия, и отчёт за полгода
+  // рисовал бы падающую линию просто потому, что данные исчезают.
+  assert.equal(r.days, W.KEEP_DAYS);
+  assert.equal(r.clipped, true);
+});

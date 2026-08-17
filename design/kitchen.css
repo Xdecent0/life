@@ -1509,6 +1509,10 @@
   white-space: nowrap;
 }
 
+.lrow-why[data-tone="warn"] {
+  color: var(--ink-2);
+}
+
 .lrow-qty,
 .lrow-price {
   font-size: var(--t-meta);
@@ -1552,4 +1556,37 @@
       border-color: var(--line-firm);
       background: var(--surface);
     }
+}
+
+/* ---------- потери ---------- */
+
+/* Строка потери — не .insp-row: вывод под ней это предложение, а не второе
+   значение справа, и в flex-строке с space-between оно уехало бы в колонку
+   шириной в слово. */
+
+.loss {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.loss:last-child {
+  border-bottom: 0;
+}
+
+.loss-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--t-body);
+}
+
+.loss-why {
+  margin: 0;
+  font-size: var(--t-meta);
+  color: var(--ink-3);
+  line-height: 1.45;
+  text-wrap: pretty;
 }

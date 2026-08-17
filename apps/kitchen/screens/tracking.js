@@ -10,6 +10,7 @@ import { html, raw, icon, esc, fmtMoney, toast, wide , fmtAlso } from "../../../
 import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import * as P from "../lib/planning.js";
+import * as W from "../lib/waste.js";
 import { alive } from "./stock.js";
 
 let window_ = 30;
@@ -62,6 +63,8 @@ function phone(state) {
         <div class="figure"><span class="figure-n num">${s.bySource["заведение"] ?? 0}</span><span class="figure-t">в заведениях</span></div>
         <div class="figure"><span class="figure-n num">${s.bySource["доставка"] ?? 0}</span><span class="figure-t">доставок</span></div>
       </div>
+
+      ${raw(lossBlock(state, now, "pane"))}
 
       ${raw(top.length ? `<section class="pane">
         <div class="label">Чем питаешься чаще всего</div>
@@ -154,6 +157,52 @@ function moneyStrip(state, now) {
   </div>`;
 }
 
+/**
+ * Money already spent that never became food.
+ *
+ * The app has been recording this since the first week — «съел» and «выброшено»
+ * are two different buttons and the answer is kept on the record — and read it
+ * exactly once, to tighten the shelf table for that one product. Never added up,
+ * so the only number in the kitchen that is pure loss was the one nobody saw.
+ *
+ * A count on its own would be a scolding. Each name that has been thrown more
+ * than once carries the conclusion instead: whether it was bought in too large
+ * a quantity or stored in the wrong place — and those are different fixes.
+ */
+function lossBlock(state, now, cls = "insp-block") {
+  const r = W.losses(state, { days: window_, now });
+  if (!r.thrown) return "";
+
+  const head = r.money != null
+    ? `${Math.round(r.money).toLocaleString("ru")} ${state.currency}`
+    : `${r.thrown} ${M.plural(r.thrown, "позиция", "позиции", "позиций")}`;
+
+  const note = r.money != null
+    ? r.unpriced
+      ? `${r.priced} из ${r.thrown} по последним ценам, остальные не встречались в чеках`
+      : `${r.thrown} ${M.plural(r.thrown, "позиция", "позиции", "позиций")} за ${r.days} ${M.plural(r.days, "день", "дня", "дней")}`
+    : "цены появятся, когда эти продукты попадут в отсканированный чек";
+
+  const rows = r.rows.slice(0, 5).map((row) => html`<div class="loss">
+    <div class="loss-head">
+      <span>${row.product}${raw(row.times > 1 ? ` <span class="tdim num">· ${row.times} ${esc(M.plural(row.times, "раз", "раза", "раз"))}</span>` : "")}</span>
+      <span class="tdim num">${raw(row.money != null
+        ? esc(fmtMoney(row.money))
+        // Без цены строка была бы голым словом посреди столбца сумм: тогда
+        // правую половину занимает то, что про эту запись точно известно.
+        : esc(new Date(row.lastAt).toLocaleDateString("ru", { day: "numeric", month: "short" }).replace(/\.$/, "")))}</span>
+    </div>
+    ${raw(row.verdict ? `<p class="loss-why">${esc(row.verdict)}</p>` : "")}
+  </div>`).join("");
+
+  return html`<div class="${cls}">
+    <div class="label">Не доехало</div>
+    <div class="insp-row"><span class="num">${head}</span>${raw(r.share ? `<span class="tdim num">${r.thrown} из ${r.closed} закрытых</span>` : "")}</div>
+    <p class="loss-why">${note}</p>
+    ${raw(rows)}
+  </div>`;
+}
+
 function railDay(state, date) {
   const meals = P.mealsOn(state.meals, date);
   const label = new Date(date).toLocaleDateString("ru", { weekday: "long", day: "numeric", month: "long" });
@@ -212,6 +261,8 @@ function railPeriod(state, now) {
       <span class="tdim num">${prev.total ? (delta === 0 ? "как в прошлом периоде" : `${delta > 0 ? "+" : ""}${delta} к прошлому`) : "не с чем сравнить"}</span>
     </div>
   </div>` : "")}
+
+  ${raw(lossBlock(state, now))}
 
   ${raw(top.length ? `<div class="insp-block">
     <div class="label">Опоры рациона</div>

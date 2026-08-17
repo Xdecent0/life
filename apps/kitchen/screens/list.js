@@ -11,6 +11,7 @@ import { html, raw, icon, esc, cap, fmtMoney, toast, wide , fmtAlso } from "../.
 import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import * as T from "../lib/trip.js";
+import * as W from "../lib/waste.js";
 import { priceHistory } from "../lib/planning.js";
 import * as S from "../lib/share.js";
 import * as gh from "../../../core/github.js";
@@ -31,6 +32,19 @@ function reasonOf(entry, state) {
   if (entry.from === "forecast") return M.dueReason(entry.product, state.history);
   if (entry.from === "recipe") return entry.forRecipe ? `для рецепта: ${entry.forRecipe}` : "для рецепта";
   return "";
+}
+
+/**
+ * What the throwing-away record has to say about this line.
+ *
+ * The same fact lives in the report on the tracking screen, but a summary read
+ * at the end of the month cannot change anything, and a line read while standing
+ * in front of the shelf can. So it is said here, where the quantity is still
+ * being decided — and only from the second throw, because one forgotten cucumber
+ * is not a habit and being told off for it teaches the person to stop reading.
+ */
+function warnOf(entry, state) {
+  return W.tossNote(state.stock, entry.product);
 }
 
 /**
@@ -88,6 +102,7 @@ function shareSheet(state) {
 function phoneRow(entry, state) {
   const why = reasonOf(entry, state);
   const who = whoOf(entry);
+  const warn = warnOf(entry, state);
 
   return html`<button class="row" type="button" data-act="toggle" data-id="${entry.id}"
       data-done="${entry.done ? 1 : 0}" aria-pressed="${entry.done}">
@@ -95,6 +110,7 @@ function phoneRow(entry, state) {
     <span class="row-main">
       <span class="row-name">${entry.product}</span>
       ${raw(why ? `<span class="row-why">${esc(why)}</span>` : "")}
+      ${raw(warn ? `<span class="row-why" data-tone="warn">${esc(warn)}</span>` : "")}
       ${raw(who ? `<span class="row-why">взял${who === "я" ? "" : "а"} ${esc(who)}</span>` : "")}
     </span>
     ${raw(entry.qty ? `<span class="row-qty num">${esc(entry.qty)}</span>` : "")}
@@ -278,6 +294,7 @@ function tripRow(row, state, index) {
   const { entry } = row;
   const why = reasonOf(entry, state);
   const who = whoOf(entry);
+  const warn = warnOf(entry, state);
   const on = selected.has(entry.id);
 
   return html`<div class="lrow" data-act="focus" data-id="${entry.id}" data-index="${index}"
@@ -289,6 +306,7 @@ function tripRow(row, state, index) {
     <span class="lrow-main">
       <span class="lrow-name">${entry.product}</span>
       ${raw(why || who ? `<span class="lrow-why">${esc([why, who ? `взял${who === "я" ? "" : "а"} ${who}` : null].filter(Boolean).join(" · "))}</span>` : "")}
+      ${raw(warn ? `<span class="lrow-why" data-tone="warn">${esc(warn)}</span>` : "")}
     </span>
     <span class="lrow-qty num">${entry.qty}</span>
     <span class="lrow-price num">${raw(row.price ? esc(fmtMoney(row.price)) : `<span class="tnone" aria-label="цену не знаю">–</span>`)}</span>
@@ -311,10 +329,21 @@ function railContext(state, plan, focusedRow) {
     const { entry } = focusedRow;
     const history = priceHistory(state.receipts, entry.product).slice(-4);
 
+    const loss = W.lossOf(state, entry.product);
+
     return html`<div class="insp-block">
       <h2 class="insp-name">${entry.product}</h2>
       <p class="prose">${reasonOf(entry, state) || "Добавлено руками."}</p>
     </div>
+
+    ${raw(loss && loss.times > 1 ? `<div class="insp-block">
+      <div class="label">Уже выбрасывал</div>
+      <div class="insp-row">
+        <span>${loss.times} ${esc(M.plural(loss.times, "раз", "раза", "раз"))} за ${W.KEEP_DAYS} дней</span>
+        ${loss.money != null ? `<span class="tdim num">${esc(fmtMoney(loss.money))}</span>` : ""}
+      </div>
+      ${loss.verdict ? `<p class="loss-why">${esc(loss.verdict)}</p>` : ""}
+    </div>` : "")}
 
     ${raw(history.length ? `<div class="insp-block">
       <div class="label">Сколько стоило</div>

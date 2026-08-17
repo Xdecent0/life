@@ -19,6 +19,7 @@ life.serve({
     "./lib/trip.js",
     "./lib/recipes.js",
     "./lib/planning.js",
+    "./lib/waste.js",
     "./lib/receipt.js",
     "./screens/list.js",
     "./screens/stock.js",
