@@ -6,7 +6,7 @@
    Грузится вместе с design/app.css, а не вместо него. */
 
 .hub {
-  max-width: 1060px;
+  max-width: 1340px;
   margin: 0 auto;
   padding: 0 24px 72px;
   display: flex;
@@ -121,9 +121,16 @@
 }
 
 @media (min-width: 860px) {
-  .hub-panes {
-      grid-template-columns: 1fr 1fr;
-    }
+  .hub-panes { grid-template-columns: 1fr 1fr; }
+}
+
+/* Щиток открывают раз в месяц, а места он занимал больше, чем весь пульт.
+   На широком экране — три колонки мелкими карточками, и он перестаёт быть
+   вторым этажом. */
+@media (min-width: 1200px) {
+  .hub-panes { grid-template-columns: repeat(3, 1fr); }
+  .hub-panes .pane { padding: 13px 15px; }
+  .hub-panes .pane .prose { font-size: var(--t-meta); }
 }
 
 /* ---------- поиск ---------- */
@@ -325,7 +332,11 @@
 }
 
 @media (min-width: 900px) {
-  .dash { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+  .dash[data-cols="2"] { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+}
+
+@media (min-width: 1200px) {
+  .dash[data-cols="3"] { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr); }
 }
 
 .dash-col {
@@ -539,3 +550,17 @@ a.hour-main { color: inherit; text-decoration: none; }
 .panel--quiet { background: none; border-style: dashed; }
 
 .rowbtns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Лента дня — главный блок пульта, и это должно быть видно размером, а не
+   только порядком: строки выше, имя крупнее соседних панелей. */
+
+.panel--day .hour { padding: 11px 0; }
+.panel--day .hour-said { font-size: var(--t-item); }
+
+/* Шкалы тянутся по числу тех, которые есть чем померить: две штуки в ряд из
+   трёх колонок смотрелись как забытая третья. */
+.gauges { grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); }
+
+/* Приложение без ритма правок не получает полоску из одной палки: пустое место
+   честнее, чем график, на котором нечего читать. */
+.spark--none { width: 33px; }

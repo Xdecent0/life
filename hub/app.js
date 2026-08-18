@@ -329,6 +329,53 @@ function logPane() {
   </section>`;
 }
 
+/* ---------- раскладка ---------- */
+
+/**
+ * Панели раскладываются по колонкам по факту, а не по заранее нарисованной
+ * схеме.
+ *
+ * Схема из двух жёстких колонок держалась ровно до первого настоящего
+ * устройства: там не оказалось Уборки и Мест, половина блоков не нарисовалась,
+ * левая колонка сдулась до четырёх строк, а правая тянулась на экран с лишним.
+ * Половина экрана — пустое поле.
+ *
+ * Поэтому колонки набираются жадно: панель уходит в ту, что сейчас короче.
+ * Вес — не высота в пикселях (её на сервере никто не знает), а грубая оценка
+ * «сколько эта панель обычно занимает»; для ленты она считается по числу строк,
+ * потому что именно лента и растёт.
+ */
+function dash(all, now) {
+  const urgent = urgentEverywhere(now).map((row, i) => ({ ...row, index: i }));
+
+  const panels = [
+    { html: dayPane(all, urgent, now), weight: 2 + urgent.length },
+    { html: gaugePane(all, now), weight: 3 },
+    { html: appsPane(now), weight: 5 },
+    { html: planPane(all, now), weight: 4 },
+    { html: weekPane(all, now), weight: 2 },
+    { html: quietPane(), weight: 3 },
+    { html: alertPane(), weight: 3 },
+    { html: heatPane(all), weight: 3 },
+    { html: missingPane(), weight: 2 },
+  ].filter((p) => p.html);
+
+  // Три колонки на широком экране, две на среднем, одна на телефоне — решает
+  // CSS, а здесь только раскладка на то число, которое CSS в итоге покажет.
+  const count = window.innerWidth >= 1200 ? 3 : window.innerWidth >= 900 ? 2 : 1;
+  const cols = Array.from({ length: count }, () => ({ weight: 0, html: [] }));
+
+  for (const panel of panels) {
+    const target = cols.reduce((a, b) => (b.weight < a.weight ? b : a));
+    target.html.push(panel.html);
+    target.weight += panel.weight;
+  }
+
+  return html`<div class="dash" data-cols="${count}">
+    ${raw(cols.filter((c) => c.html.length).map((c) => `<div class="dash-col">${c.html.join("")}</div>`).join(""))}
+  </div>`;
+}
+
 /* ---------- экран ---------- */
 
 function render() {
@@ -348,21 +395,7 @@ function render() {
 
     ${raw(searchPane())}
 
-    ${raw(searching ? "" : html`<div class="dash">
-      <div class="dash-col">
-        ${raw(dayPane(all, urgentEverywhere(now).map((row, i) => ({ ...row, index: i })), now))}
-        ${raw(planPane(all, now))}
-        ${raw(weekPane(all, now))}
-      </div>
-      <div class="dash-col">
-        ${raw(gaugePane(all, now))}
-        ${raw(appsPane(now))}
-        ${raw(quietPane())}
-        ${raw(alertPane())}
-        ${raw(heatPane(all))}
-        ${raw(missingPane())}
-      </div>
-    </div>`)}
+    ${raw(searching ? "" : dash(all, now))}
 
     <section class="hub-section">
       <span class="hub-label">Щиток</span>

@@ -29,7 +29,7 @@ export function dayPane(all, urgent, now = today()) {
     </section>`;
   }
 
-  return html`<section class="panel">
+  return html`<section class="panel panel--day">
     <div class="panel-h">
       <span class="panel-t">Сегодня</span>
       <span class="dim num">${rows.length} ${plural(rows.length, "строка", "строки", "строк")}</span>
@@ -134,7 +134,9 @@ export function appsPane(now = today()) {
           <span class="approw-nm">${esc(entry.name)}</span>
           <span class="approw-said">${esc(row.said)}${row.pending ? ` · ${row.pending} не отправлено` : ""}</span>
         </span>
-        <span class="spark" aria-hidden="true">${row.spark.map((n) => `<i style="height:${Math.max(2, Math.round(18 * n / top))}px" ${n ? 'data-on="1"' : ""}></i>`).join("")}</span>
+        ${row.spark.filter((n) => n > 0).length > 1
+          ? `<span class="spark" aria-hidden="true">${row.spark.map((n) => `<i style="height:${Math.max(2, Math.round(18 * n / top))}px" ${n ? 'data-on="1"' : ""}></i>`).join("")}</span>`
+          : `<span class="spark spark--none" aria-hidden="true"></span>`}
         <span class="approw-v num">${row.value == null ? "—" : row.value}</span>
       </a>`).join(""))}
     </div>
@@ -159,7 +161,11 @@ export function heatPane(all, now = Date.now()) {
   ].map((l) => ({ ...l, weeks: D.activityWeeks(l.items, { weeks: 26, now }) }));
 
   const top = Math.max(1, ...lines.flatMap((l) => l.weeks));
-  if (!top || lines.every((l) => l.weeks.every((n) => !n))) return "";
+  /* Сетка, где закрашены две клетки из ста четырёх, читается как сломанная, а
+     не как «мало данных». Полгода показываются, когда есть что показывать:
+     хотя бы четыре живые недели. */
+  const alive = lines.flatMap((l) => l.weeks).filter((n) => n > 0).length;
+  if (alive < 4) return "";
 
   return html`<section class="panel">
     <div class="panel-h">
