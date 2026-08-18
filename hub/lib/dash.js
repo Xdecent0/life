@@ -24,39 +24,35 @@ const SLOT_HOUR = { завтрак: 8, обед: 13, ужин: 19 };
  * записи есть либо настоящий час (приём пищи, срок дела), либо место в одной из
  * трёх куч: было · сейчас · вечером.
  */
-export function dayAxis({ kitchen, clean, projects }, now = today(), hour = new Date().getHours()) {
+export function dayAxis(all, urgent = [], now = today(), hour = new Date().getHours()) {
   const rows = [];
 
-  for (const meal of (kitchen?.meals ?? []).filter((m) => m.date === now)) {
+  for (const meal of (all.kitchen?.meals ?? []).filter((m) => m.date === now)) {
     rows.push({
       at: SLOT_HOUR[meal.slot] ?? null,
       when: "было",
-      said: `${meal.title}`,
+      said: meal.title,
       note: meal.cost ? `${Math.round(meal.cost)} ₴` : meal.source,
       app: "Кухня",
     });
   }
 
-  for (const line of (kitchen?.list ?? []).filter((l) => !l.deleted && !l.done && l.from === "forecast")) {
-    rows.push({ at: null, when: "сейчас", said: line.product, note: "в списке покупок", app: "Кухня", tone: "hot" });
-  }
-
-  for (const spot of (clean?.spots ?? []).filter((s) => !s.deleted && s.lastDone && s.every)) {
-    const left = daysBetween(now, spot.lastDone + spot.every * DAY);
-    if (left > 0) continue;
+  /* Срочное берётся не своим счётом, а тем же, которым живёт лента: иначе на
+     экране получаются два ответа на один вопрос, и один из них — пустой. Так и
+     вышло в первый же день на настоящих данных: ось говорила «день чистый», а
+     под ней лежали четыре просроченные строки. */
+  for (const row of urgent) {
     rows.push({
-      at: 19,
-      when: "вечером",
-      said: spot.name,
-      note: left === 0 ? "сегодня" : `просрочено на ${-left} ${plural(-left, "день", "дня", "дней")}`,
-      app: "Уборка",
-      tone: left < -spot.every ? "hot" : "warm",
+      at: null,
+      when: row.left <= 0 ? "сейчас" : "вечером",
+      said: row.name,
+      note: row.note,
+      app: row.app,
+      tone: row.left <= 0 ? "hot" : "warm",
+      href: row.href,
+      act: row.act ?? null,
+      index: row.index,
     });
-  }
-
-  for (const deed of (projects?.board?.дела ?? []).filter((d) => !d.сделано && d.срок)) {
-    if (Date.parse(deed.срок) !== now) continue;
-    rows.push({ at: null, when: "вечером", said: deed.текст, note: "срок сегодня", app: "Проекты", tone: "warm" });
   }
 
   const order = { было: 0, сейчас: 1, вечером: 2 };
@@ -64,7 +60,7 @@ export function dayAxis({ kitchen, clean, projects }, now = today(), hour = new 
     const byWhen = order[a.when] - order[b.when];
     if (byWhen) return byWhen;
     return (a.at ?? 99) - (b.at ?? 99);
-  }).map((r) => ({ ...r, past: r.at != null && r.at < hour && r.when === "было" }));
+  }).map((r) => ({ ...r, past: r.when === "было" && r.at != null && r.at < hour }));
 }
 
 /* ---------- пространство ---------- */

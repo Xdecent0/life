@@ -525,3 +525,17 @@
 .week-day[data-busy="0"] .week-c { color: var(--ink-5); }
 .week-d { font-size: var(--t-label); color: var(--ink-5); }
 .week-c { font-size: var(--t-item); }
+
+/* Строка оси дня целиком кликабельна, а кнопка отметки стоит рядом: открыть
+   приложение и отметить не выходя — разные намерения, и ссылка в ссылке их
+   путает. */
+
+a.hour-main { color: inherit; text-decoration: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  a.hour-main:hover .hour-said { text-decoration: underline; text-underline-offset: 2px; }
+}
+
+.panel--quiet { background: none; border-style: dashed; }
+
+.rowbtns { display: flex; gap: 8px; flex-wrap: wrap; }

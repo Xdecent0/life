@@ -29,7 +29,7 @@ import * as QR from "../core/qr.js";
 import * as log from "../core/log.js";
 import { encodePairing } from "../core/pair.js";
 import * as INSTALL from "../core/install.js";
-import { states, dayPane, planPane, gaugePane, appsPane, heatPane, weekPane } from "./panels.js";
+import { states, dayPane, planPane, gaugePane, appsPane, heatPane, weekPane, missingPane } from "./panels.js";
 
 import KITCHEN from "../apps/kitchen/manifest.js";
 import THINGS from "../apps/things/manifest.js";
@@ -133,45 +133,6 @@ function alertPane() {
       ${raw(rows.slice(0, 6).map((a) => `<p class="prose">${esc(a.текст ?? "")}
         <span class="tdim"> · ${esc(a.источник ?? "проверка")}</span></p>`).join(""))}
       <p class="prose prose--muted">Меряют вотчдоги на компьютере; сюда это приезжает снимком доски вместе с проектами.</p>
-    </div>
-  </section>`;
-}
-
-/* ---------- сегодня ---------- */
-
-/**
- * One feed instead of four visits.
- *
- * Ordered by how late the thing already is, not by which app it came from: milk
- * going off tonight and a floor unwashed for ten days are the same kind of
- * answer to the same question, and grouping by app would bury the urgent one
- * under whichever app happened to sort first.
- */
-function todayPane() {
-  const rows = urgentEverywhere(today());
-  if (!rows.length) return "";
-
-  const shown = rows.slice(0, 8);
-
-  /* Строка ленты — ссылка, а кнопка отметки внутри неё была бы ссылкой в ссылке.
-     Поэтому кнопка стоит рядом, за пределами якоря: нажать «Убрал» и уйти на
-     экран поверхности — разные намерения, и путать их нельзя. */
-  return html`<section class="hub-section">
-    <span class="hub-label">Сегодня · ${rows.length}</span>
-    <div class="feed">
-      ${raw(shown.map((row, i) => `<div class="feed-line">
-        <a class="feed-row" href="${esc(row.href)}">
-          <span class="feed-mark" aria-hidden="true">${icon(row.icon, { size: 16, stroke: "currentColor" })}</span>
-          <span class="feed-name">${esc(row.name)}</span>
-          <span class="feed-note">${esc(row.note)}</span>
-          <span class="feed-app">${esc(row.app)}</span>
-        </a>
-        ${row.act ? `<button class="btn btn--ghost btn--sm feed-do" type="button" data-act="mark" data-row="${i}"
-          aria-label="${esc(row.act.label)}: ${esc(row.name)}">${esc(row.act.label)}</button>` : ""}
-      </div>`).join(""))}
-      ${raw(rows.length > shown.length
-        ? `<p class="prose prose--muted feed-more">И ещё ${rows.length - shown.length}: они в своих приложениях.</p>`
-        : "")}
     </div>
   </section>`;
 }
@@ -389,7 +350,7 @@ function render() {
 
     ${raw(searching ? "" : html`<div class="dash">
       <div class="dash-col">
-        ${raw(dayPane(all, now))}
+        ${raw(dayPane(all, urgentEverywhere(now).map((row, i) => ({ ...row, index: i })), now))}
         ${raw(planPane(all, now))}
         ${raw(weekPane(all, now))}
       </div>
@@ -399,10 +360,9 @@ function render() {
         ${raw(quietPane())}
         ${raw(alertPane())}
         ${raw(heatPane(all))}
+        ${raw(missingPane())}
       </div>
     </div>`)}
-
-    ${raw(searching ? "" : todayPane())}
 
     <section class="hub-section">
       <span class="hub-label">Щиток</span>

@@ -19,27 +19,30 @@ export function states() {
 
 /* ---------- ось дня ---------- */
 
-export function dayPane(all, now = today()) {
-  const rows = D.dayAxis(all, now);
+export function dayPane(all, urgent, now = today()) {
+  const rows = D.dayAxis(all, urgent, now);
 
   if (!rows.length) {
     return html`<section class="panel">
-      <div class="panel-h"><span class="panel-t">Сегодня по часам</span></div>
-      <p class="prose prose--muted">Пока ничего не записано и ничего не просрочено. День чистый.</p>
+      <div class="panel-h"><span class="panel-t">Сегодня</span></div>
+      <p class="prose prose--muted">Ничего не записано и ничего не просрочено. День чистый.</p>
     </section>`;
   }
 
   return html`<section class="panel">
     <div class="panel-h">
-      <span class="panel-t">Сегодня по часам</span>
-      <span class="dim num">${rows.length} ${plural(rows.length, "запись", "записи", "записей")}</span>
+      <span class="panel-t">Сегодня</span>
+      <span class="dim num">${rows.length} ${plural(rows.length, "строка", "строки", "строк")}</span>
     </div>
     <div class="hours">
       ${raw(rows.map((r) => `<div class="hour" data-tone="${esc(r.tone ?? "calm")}" data-past="${r.past ? 1 : 0}">
         <span class="hour-at num">${r.at != null ? `${String(r.at).padStart(2, "0")}:00` : esc(r.when)}</span>
         <span class="hour-dot" aria-hidden="true"></span>
-        <span class="hour-main"><span class="hour-said">${esc(r.said)}</span><span class="hour-note">${esc(r.note ?? "")}</span></span>
-        <span class="hour-app">${esc(r.app)}</span>
+        ${r.href
+          ? `<a class="hour-main" href="${esc(r.href)}"><span class="hour-said">${esc(r.said)}</span><span class="hour-note">${esc(r.note ?? "")} · ${esc(r.app)}</span></a>`
+          : `<span class="hour-main"><span class="hour-said">${esc(r.said)}</span><span class="hour-note">${esc(r.note ?? "")} · ${esc(r.app)}</span></span>`}
+        ${r.act ? `<button class="btn btn--ghost btn--sm" type="button" data-act="mark" data-row="${r.index}"
+            aria-label="${esc(r.act.label)}: ${esc(r.said)}">${esc(r.act.label)}</button>` : ""}
       </div>`).join(""))}
     </div>
   </section>`;
@@ -56,13 +59,10 @@ export function dayPane(all, now = today()) {
  */
 export function planPane(all, now = today()) {
   const rooms = (all.clean?.rooms ?? []).filter((r) => r.row && r.col);
-  if (!rooms.length) {
-    return html`<section class="panel">
-      <div class="panel-h"><span class="panel-t">Дом сейчас</span></div>
-      <p class="prose prose--muted">Плана нет: комнаты описываются в волте, в «Дом/Комнаты». Уборка умеет заселить обычную квартиру одним нажатием.</p>
-      <a class="btn btn--ghost btn--sm" href="../apps/clean/#map">Открыть Уборку</a>
-    </section>`;
-  }
+  /* Панель, которой нечего показать, — не «пустое состояние», а дыра: экран из
+     таких выглядит сломанным, даже когда всё цело. Приглашение открыть Уборку
+     уезжает одной строкой в конец пульта, где собраны все неоткрытые. */
+  if (!rooms.length) return "";
 
   const cells = rooms.map((room) => D.roomState(room, all, now));
   const cols = Math.max(...cells.map((c) => c.col + c.w - 1));
@@ -94,7 +94,8 @@ export function planPane(all, now = today()) {
 /* ---------- шкалы ---------- */
 
 export function gaugePane(all, now = today()) {
-  const rows = D.gauges(all, now);
+  const rows = D.gauges(all, now).filter((g) => g.value != null);
+  if (!rows.length) return "";
 
   return html`<section class="panel">
     <div class="panel-h"><span class="panel-t">Шкалы</span></div>
@@ -188,6 +189,30 @@ export function weekPane(all, now = today()) {
         <span class="week-d">${names[i]}</span>
         <span class="week-c num">${d.count || "·"}</span>
       </div>`).join(""))}
+    </div>
+  </section>`;
+}
+
+/* ---------- то, чего здесь нет ---------- */
+
+/**
+ * Одна строка вместо трёх пустых панелей.
+ *
+ * На новом устройстве открыты не все приложения, и раньше каждое неоткрытое
+ * оставляло на пульте свою дыру: «плана нет», «ни одной отметки», пустая
+ * полоска в полугодии. Три дыры подряд читаются как поломка, хотя всё цело —
+ * просто здесь ещё не были.
+ */
+export function missingPane() {
+  const cold = APPS.filter((entry) => entry.ready && !peek(entry));
+  if (!cold.length) return "";
+
+  const names = cold.map((e) => e.name).join(", ");
+  return html`<section class="panel panel--quiet">
+    <div class="panel-h"><span class="panel-t">Пока не открывалось здесь</span></div>
+    <p class="prose prose--muted">${names} на этом устройстве ещё не открывали, поэтому дом, шкала чистоты и часть полугодия пустые. Открой — и они появятся сами.</p>
+    <div class="rowbtns">
+      ${raw(cold.map((e) => `<a class="btn btn--ghost btn--sm" href="${esc(e.href)}">${esc(e.name)}</a>`).join(""))}
     </div>
   </section>`;
 }
