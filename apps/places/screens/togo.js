@@ -8,6 +8,7 @@
 // «куда доеду», и первый вопрос к списку — в какой он части города.
 
 import { html, raw, esc, icon, toast, wide } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { commit, touch } from "../../../core/state.js";
 import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
@@ -38,7 +39,7 @@ export default {
 
     if (!groups.length) {
       return html`<main class="screen">
-        <header class="head head--dark"><h1>Куда сходить</h1><span class="head-sub">пока нечего предложить</span></header>
+        ${raw(pageHead({ title: `Куда сходить`, said: `пока нечего предложить` }))}
         <div class="body"><div class="empty">
           <h2>Список молчит — и честно</h2>
           <p>Сюда попадает то, что зовёт обратно по твоему же ритму, места без единого визита и любимое, где давно не был. Ничего из этого приложение не выдумывает: поставь ритм или заведи место, куда хочется.</p>
@@ -54,18 +55,19 @@ export default {
     const at = nav.on(flat);
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Куда сходить</h1>
-          <span class="head-sub num">${total} ${M.plural(total, "вариант", "варианта", "вариантов")}${area === "везде" ? "" : ` · ${area}`}</span>
-        </div>
-      </header>
+      ${raw(pageHead({
+        title: "Куда сходить",
+        said: `${total} ${M.plural(total, "вариант", "варианта", "вариантов")}${area === "везде" ? "" : ` · ${area}`}`,
+        actions: headLink("Все места", "#places"),
+        chips: areas.length > 1
+          ? ["везде", ...areas].map((a) =>
+              `<button class="chip chip--sm" type="button" data-act="area" data-area="${esc(a)}" aria-pressed="${area === a}">${esc(a)}</button>`).join("")
+          : "",
+      }))}
 
-      ${raw(areas.length > 1 ? `<div class="filterbar">
-        <span class="seg-label">район</span>
-        ${["везде", ...areas].map((a) =>
-          `<button class="chip chip--sm" type="button" data-act="area" data-area="${esc(a)}" aria-pressed="${area === a}">${esc(a)}</button>`).join("")}
-      </div>` : "")}
+      <div class="workbar">
+        <span class="toolbar-hint"><kbd>↑↓</kbd> ходить · <kbd>Space</kbd> отметить поход · порядок — сначала то, что зовёт само</span>
+      </div>
 
       <div class="body">
         ${raw(shown.length ? shown.map((g) => `<div class="aisle aisle--grp">

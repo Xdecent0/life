@@ -1,6 +1,7 @@
 // Scanned receipts, newest first. Useful for checking what the parser actually did.
 
 import { html, raw, esc, fmtDate, fmtMoney } from "../../../core/dom.js";
+import { pageHead, headLink } from "../../../core/screens/head.js";
 import { touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 
@@ -12,7 +13,7 @@ export default {
   render(state) {
     if (!state.receipts.length) {
       return html`<main class="screen">
-        <header class="head"><h1>Чеки</h1></header>
+        ${raw(pageHead({ title: "Чеки", said: "пока ни одного" }))}
         <div class="body">
           <div class="empty">
             <h2>Чеков ещё нет</h2>
@@ -45,12 +46,15 @@ export default {
     }).join("");
 
     return html`<main class="screen">
-      <header class="head">
-        <div class="head-row">
-          <h1>Чеки</h1>
-          <span class="head-sub num">${state.receipts.length} · ${fmtMoney(total)}</span>
-        </div>
-      </header>
+      ${raw(pageHead({
+        title: "Чеки",
+        said: `${state.receipts.length} ${M.plural(state.receipts.length, "чек", "чека", "чеков")} · ${fmtMoney(total)}`,
+        actions: headLink("Сканировать", "#scan"),
+      }))}
+      <div class="workbar">
+        <span class="toolbar-hint">Строка открывает чек целиком · QR даёт чистые позиции, фото — черновик</span>
+      </div>
+
       <div class="body">${raw(rows)}</div>
       <div class="foot"><a class="btn btn--grow" href="#scan">Сканировать чек</a></div>
     </main>`;

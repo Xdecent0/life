@@ -8,6 +8,7 @@
 import { html, raw, icon, esc, toast, fmtDate, fmtMoney, wide , fmtAlso } from "../../../core/dom.js";
 import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
+import { pageHead, headBtn } from "../../../core/screens/head.js";
 import { mark } from "../../../core/sync.js";
 import * as P from "../lib/planning.js";
 import { match, rank } from "../lib/recipes.js";
@@ -59,17 +60,17 @@ function phone(state) {
   </div>`;
 
   return html`<main class="screen">
-    <header class="head">
-      <div class="head-row">
-        <h1>Меню недели</h1>
-        <span class="head-sub num">${coverage.planned} из ${coverage.slots}</span>
-      </div>
-      <div class="chips">
-        <button class="chip" type="button" data-act="prevWeek">← неделя назад</button>
+    ${raw(pageHead({
+      title: "Меню недели",
+      said: `${coverage.planned} из ${coverage.slots}`,
+      chips: `<button class="chip" type="button" data-act="prevWeek">←</button>
         <button class="chip" type="button" data-act="thisWeek" aria-pressed="${weekOffset === 0}">эта неделя</button>
-        <button class="chip" type="button" data-act="nextWeek">вперёд →</button>
-      </div>
-    </header>
+        <button class="chip" type="button" data-act="nextWeek">→</button>`,
+    }))}
+
+    <div class="workbar">
+      <span class="toolbar-hint">${coverage.ready} из ${coverage.planned} готовится без магазина</span>
+    </div>
 
     <div class="body">
       ${raw(grid)}
@@ -235,24 +236,16 @@ function desk(state) {
   const coverage = P.weekCoverage(state.menu, state.recipes, stock, start);
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Меню недели</h1>
-          <span class="head-sub num">${coverage.planned} из ${coverage.slots} · ${coverage.ready} без магазина</span>
-        </div>
-      </div>
-    </header>
-
-    <div class="toolbar">
-      <div class="chips">
-        <button class="chip" type="button" data-act="prevWeek">←</button>
+    ${raw(pageHead({
+      title: "Меню недели",
+      said: `${coverage.planned} из ${coverage.slots} · ${coverage.ready} без магазина`,
+      actions: headBtn("Очистить неделю", 'data-act="clearWeek"'),
+      chips: `<button class="chip" type="button" data-act="prevWeek">←</button>
         <button class="chip" type="button" data-act="thisWeek" aria-pressed="${weekOffset === 0}">эта неделя</button>
-        <button class="chip" type="button" data-act="nextWeek">→</button>
-      </div>
-      <span class="toolbar-sep" aria-hidden="true"></span>
-      <button class="chip" type="button" data-act="clearWeek">Очистить неделю</button>
-      <span class="toolbar-gap"></span>
+        <button class="chip" type="button" data-act="nextWeek">→</button>`,
+    }))}
+
+    <div class="workbar">
       <span class="toolbar-hint"><kbd>Enter</kbd> подбор · <kbd>Backspace</kbd> очистить ячейку</span>
     </div>
 
@@ -274,13 +267,11 @@ function picker(state, stock, { phone: isPhone } = {}) {
     .sort((a, b) => a.m.missing.length - b.m.missing.length);
 
   return html`<main class="screen">
-    <header class="head">
-      <div class="head-row">
-        <h1 class="h1--sm">Что готовим</h1>
-        <button class="icon-btn icon-btn--sm" type="button" data-act="cancelPick" aria-label="Отмена">${raw(icon("i-close", { size: 18, stroke: "#1c3327" }))}</button>
-      </div>
-      <span class="head-sub">${picking.slot}, ${day}</span>
-    </header>
+    ${raw(pageHead({
+      title: "Что готовим",
+      said: `${picking.slot}, ${day}`,
+      actions: headBtn("Отмена", 'data-act="cancelPick"'),
+    }))}
     <div class="body">
       ${raw(options.length
         ? options.map(({ recipe, m }) => `<button class="row" type="button" data-act="choose" data-id="${esc(recipe.id)}">

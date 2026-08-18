@@ -6,6 +6,7 @@
 // дней. Ради этого вопроса дату и записывают.
 
 import { html, raw, esc, cap, fmtMoney, fmtDate, toast, wide } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { commit, touch } from "../../../core/state.js";
 import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
@@ -48,7 +49,7 @@ export default {
 
     if (!groups.length) {
       return html`<main class="screen">
-        <header class="head head--dark"><h1>Гарантии</h1><span class="head-sub">пусто</span></header>
+        ${raw(pageHead({ title: `Гарантии`, said: `пусто` }))}
         <div class="body"><div class="empty">
           <h2>Гарантий пока не записано</h2>
           <p>Дата стоит того, чтобы её записать, у техники и у всего, что чинят по чеку. Открой вещь и поставь «гарантия до» — за месяц до конца она сама начнёт напоминать.</p>
@@ -64,12 +65,7 @@ export default {
     const at = nav.on(flat);
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Гарантии</h1>
-          <span class="head-sub num">${soon ? `${soon} кончается в этом месяце` : "срочного нет"}${money ? ` · под защитой ${fmtMoney(money)}` : ""}</span>
-        </div>
-      </header>
+      ${raw(pageHead({ title: "Гарантии", said: `${soon ? `${soon} кончается в этом месяце` : "срочного нет"}${money ? ` · под защитой ${fmtMoney(money)}` : ""}` }))}
 
       <div class="groupbar">
         <div class="seg seg--sm" role="group" aria-label="Что показывать">

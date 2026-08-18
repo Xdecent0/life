@@ -2,6 +2,7 @@
 // правится — по нему считается всё остальное.
 
 import { html, raw, icon, esc, cap, toast } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { cardScreen } from "../../../core/screens/card.js";
 import { commit } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
@@ -20,7 +21,7 @@ export default {
     const spot = find(state, id);
     if (!spot) {
       return html`<main class="screen">
-        <header class="head"><h1>Не нашлось</h1></header>
+        ${raw(pageHead({ title: `Не нашлось` }))}
         <div class="body"><div class="empty"><h2>Такой поверхности нет</h2><p>Её удалили, или ссылка старая.</p><a class="btn" href="#map">К карте</a></div></div>
       </main>`;
     }
@@ -29,17 +30,13 @@ export default {
     const st = M.stateOf(spot, now);
     const room = M.roomsOf(state).find((r) => r.id === spot.room);
 
-    const head = html`<header class="head">
-      <div class="head-row">
-        <a class="icon-btn icon-btn--sm" href="#map" aria-label="Назад к карте">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
-        <span class="head-sub">${room ? cap(room.name) : "без комнаты"}</span>
-      </div>
-      <h1>${spot.name}</h1>
-      <div class="chips">
-        <span class="chip ${st.tone === "calm" ? "" : "chip--alarm"}">${esc(st.key)}</span>
-        <span class="chip">${esc(M.everyLabel(spot))}</span>
-      </div>
-    </header>`;
+    const head = pageHead({
+      title: `${spot.name}`,
+      back: "#map",
+      backLabel: "Назад к карте",
+      said: `${room ? cap(room.name) : "без комнаты"}`,
+      chips: `<span class="chip ${st.tone === "calm" ? "" : "chip--alarm"}">${esc(st.key)}</span> <span class="chip">${esc(M.everyLabel(spot))}</span>`,
+    });
 
     const main = html`<section class="pane">
           <div class="label">Когда убирали</div>

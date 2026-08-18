@@ -10,6 +10,7 @@
 // поверхностей никто не станет.
 
 import { html, raw, esc, cap, toast, wide } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { commit, touch } from "../../../core/state.js";
 import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
@@ -40,7 +41,7 @@ export default {
       const known = M.alive(state).length;
 
       return html`<main class="screen">
-        <header class="head head--dark"><h1>Сегодня</h1><span class="head-sub">${known ? "всё свежее" : "дом ещё не описан"}</span></header>
+        ${raw(pageHead({ title: `Сегодня`, said: `${known ? "всё свежее" : "дом ещё не описан"}` }))}
         <div class="body"><div class="empty">
           <h2>${known ? "Сегодня ничего не ждёт" : "Дом ещё не описан"}</h2>
           <p>${known
@@ -52,12 +53,15 @@ export default {
     }
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Сегодня</h1>
-          <span class="head-sub num">${count} ${M.plural(count, "поверхность", "поверхности", "поверхностей")} · ${M.saidMinutes(minutes)}</span>
-        </div>
-      </header>
+      ${raw(pageHead({
+        title: "Сегодня",
+        said: `${count} ${M.plural(count, "поверхность", "поверхности", "поверхностей")} · ${M.saidMinutes(minutes)}`,
+        actions: headLink("Карта", "#map"),
+      }))}
+
+      <div class="workbar">
+        <span class="toolbar-hint"><kbd>↑↓</kbd> ходить · <kbd>Space</kbd> отметить · порядок — по комнатам, а не по срочности</span>
+      </div>
 
       <div class="body">
         ${raw(groups.map((g) => `<div class="aisle aisle--grp">

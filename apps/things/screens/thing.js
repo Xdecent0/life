@@ -3,6 +3,7 @@
 // про неё записано.
 
 import { html, raw, icon, esc, cap, fmtMoney, toast, fmtAlso, fmtDate } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { cardScreen } from "../../../core/screens/card.js";
 import { commit } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
@@ -19,7 +20,7 @@ export default {
     const thing = find(state, id);
     if (!thing) {
       return html`<main class="screen">
-        <header class="head"><h1>Не нашлась</h1></header>
+        ${raw(pageHead({ title: `Не нашлась` }))}
         <div class="body"><div class="empty"><h2>Такой вещи нет</h2><p>Её удалили, или ссылка старая.</p><a class="btn" href="#things">К вещам</a></div></div>
       </main>`;
     }
@@ -27,18 +28,17 @@ export default {
     const warranty = M.warrantyLabel(thing);
     const running = M.warrantyRunningOut(thing);
 
-    const head = html`<header class="head">
-        <div class="head-row">
-          <a class="icon-btn icon-btn--sm" href="#things" aria-label="Назад к вещам">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
-          <span class="head-sub">${thing.place ? cap(thing.place) : "без места"}</span>
-        </div>
-        <h1>${thing.name}</h1>
-        <div class="chips">
-          ${raw(warranty ? `<span class="chip ${running ? "chip--alarm" : ""}">${esc(warranty)}</span>` : "")}
-          <span class="chip">${M.kindOf(thing, state.kinds ?? []).name}</span>
-          ${raw(thing.gone ? `<span class="chip">больше нет</span>` : "")}
-        </div>
-      </header>`;
+    const head = pageHead({
+      title: `${thing.name}`,
+      back: "#things",
+      backLabel: "Назад к вещам",
+      said: `${thing.place ? cap(thing.place) : "без места"}`,
+      chips: [
+        warranty ? `<span class="chip ${running ? "chip--alarm" : ""}">${esc(warranty)}</span>` : "",
+        `<span class="chip">${esc(M.kindOf(thing, state.kinds ?? []).name)}</span>`,
+        thing.gone ? `<span class="chip">больше нет</span>` : "",
+      ].join(""),
+    });
 
     const main = html`<section class="pane">
           <div class="label">Где лежит</div>

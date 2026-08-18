@@ -10,6 +10,7 @@
 // растворяется между циклами, будто его и не было.
 
 import { html, raw, esc, toast } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { queue } from "./row.js";
@@ -48,7 +49,7 @@ export default {
 
     if (!c) {
       return html`<main class="screen">
-        <header class="head head--dark"><h1>Цикл</h1><span class="head-sub">не идёт</span></header>
+        ${raw(pageHead({ title: `Цикл`, said: `не идёт` }))}
         <div class="body"><div class="empty">
           <h2>Цикла сейчас нет</h2>
           <p>Цикл заводится в волте — заметкой в «10 - Проекты/Циклы». Пока его нет, ритуал закрывать нечего.</p>
@@ -62,12 +63,7 @@ export default {
     const sent = M.waiting(state).some((e) => e.что === "итог+" && e.цикл === c.имя);
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Цикл ${esc(c.имя)}</h1>
-          <span class="head-sub num">неделя ${c.неделя} из ${c.всего} · осталось ${c.осталось} ${M.plural(c.осталось, "день", "дня", "дней")}</span>
-        </div>
-      </header>
+      ${raw(pageHead({ title: "Цикл ${esc(c.имя)}", said: `неделя ${c.неделя} из ${c.всего} · осталось ${c.осталось} ${M.plural(c.осталось, "день", "дня", "дней")}` }))}
 
       <div class="body">
         <p class="prose plan-note">Пройди по проектам и скажи по каждому одно слово. Итог соберётся из сказанного — а решения уедут в заметки теми же правками, что и всё остальное.</p>

@@ -9,6 +9,7 @@ import { html, raw, icon, esc, fmtMoney, fmtDate, toast, wide, fmtAlso } from ".
 import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import * as P from "../lib/planning.js";
+import { pageHead, headLink } from "../../../core/screens/head.js";
 
 let selected = null;
 let cursor = -1;
@@ -91,7 +92,7 @@ function phone(state) {
 
   if (!state.receipts.length) {
     return html`<main class="screen">
-      <header class="head"><h1>Магазины</h1></header>
+      ${raw(pageHead({ title: "Магазины", said: "чеков пока нет" }))}
       <div class="body">
         <div class="empty">
           <h2>Сравнивать пока не с чем</h2>
@@ -114,7 +115,15 @@ function phone(state) {
   </section>`).join("");
 
   return html`<main class="screen">
-    <header class="head"><h1>Магазины</h1><span class="head-sub num">${state.receipts.length} ${M.plural(state.receipts.length, "чек", "чека", "чеков")}</span></header>
+    ${raw(pageHead({
+      title: "Магазины",
+      said: `${state.receipts.length} ${M.plural(state.receipts.length, "чек", "чека", "чеков")}`,
+      actions: headLink("Сканировать", "#scan"),
+    }))}
+
+    <div class="workbar">
+      <span class="toolbar-hint">Список раскладывается по магазинам, где каждый продукт выходил дешевле</span>
+    </div>
     <div class="body">
       ${raw(list.length ? `<div class="aisle">план закупки</div>${blocks}` : `<section class="pane pane--calm"><div class="label">Список пуст</div><p class="prose">Когда в списке что-то появится, разложу его по магазинам: туда, где каждый продукт выходил дешевле.</p></section>`)}
     </div>
@@ -156,22 +165,14 @@ function desk(state) {
     : html`<div class="table"><div class="feed-empty"><p class="prose">В чеках за этот период нет ни одной позиции с ценой. Расширь период или отсканируй чек.</p></div></div>`;
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Магазины</h1>
-          <span class="head-sub num">${state.receipts.length} ${M.plural(state.receipts.length, "чек", "чека", "чеков")} · ${table.stores.length} ${M.plural(table.stores.length, "магазин", "магазина", "магазинов")}</span>
-        </div>
-        <span class="toolbar-gap"></span>
-        <a class="btn btn--ghost btn--sm" href="#scan">Импорт чека</a>
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Магазины",
+      said: `${state.receipts.length} ${M.plural(state.receipts.length, "чек", "чека", "чеков")} · ${table.stores.length} ${M.plural(table.stores.length, "магазин", "магазина", "магазинов")}`,
+      actions: headLink("Импорт чека", "#scan"),
+      chips: [30, 90, 365].map((d) => `<button class="chip" type="button" data-act="window" data-days="${d}" aria-pressed="${window_ === d}">${d === 365 ? "год" : `${d} дней`}</button>`).join(""),
+    }))}
 
-    <div class="toolbar">
-      <div class="chips" role="group" aria-label="Период">
-        ${raw([30, 90, 365].map((d) => `<button class="chip" type="button" data-act="window" data-days="${d}" aria-pressed="${window_ === d}">${d === 365 ? "год" : `${d} дней`}</button>`).join(""))}
-      </div>
-      <span class="toolbar-gap"></span>
+    <div class="workbar">
       <form class="addbar addbar--flat" data-act-submit="addStore">
         <input class="field" name="name" placeholder="Добавить магазин" aria-label="Название магазина" autocomplete="off" required>
         <button class="btn btn--ghost btn--sm" type="submit">Добавить</button>

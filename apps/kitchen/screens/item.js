@@ -2,6 +2,7 @@
 // and what to cook so it does not become rubbish.
 
 import { html, raw, icon, esc, cap, fmtDate, fmtMoney, toast } from "../../../core/dom.js";
+import { pageHead } from "../../../core/screens/head.js";
 import { cardScreen } from "../../../core/screens/card.js";
 import { commit, uid } from "../../../core/state.js";
 import * as M from "../lib/model.js";
@@ -18,7 +19,7 @@ export default {
     const entry = find(state, id);
     if (!entry) {
       return html`<main class="screen">
-        <header class="head"><h1>Позиция не найдена</h1></header>
+        ${raw(pageHead({ title: "Позиция не найдена", said: "склад её уже не показывает", back: "#stock", backLabel: "Назад на склад" }))}
         <div class="body"><div class="empty"><h2>Её больше нет</h2><p>Позицию списали или удалили. На складе её уже не показываем.</p><a class="btn" href="#stock">На склад</a></div></div>
       </main>`;
     }
@@ -38,18 +39,17 @@ export default {
       entry.opened ? "Отмечен как открытый — срок считается по короткой колонке." : null,
     ].filter(Boolean).join(" ");
 
-    const head = html`<header class="head">
-        <div class="head-row">
-          <a class="icon-btn icon-btn--sm" href="#stock" aria-label="Назад на склад">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
-          <span class="head-sub">${cap(entry.zone)}</span>
-        </div>
-        <h1>${entry.product}</h1>
-        <div class="chips">
-          ${raw(burning ? `<span class="chip chip--alarm">${esc(M.expiryLabel(entry, now))}</span>` : `<span class="chip" aria-hidden="false">${esc(M.expiryLabel(entry, now))}</span>`)}
-          ${raw(entry.opened ? `<span class="chip">открыт</span>` : "")}
-          ${raw(entry.qty ? `<span class="chip num">${esc(entry.qty)}</span>` : "")}
-        </div>
-      </header>`;
+    const head = pageHead({
+        title: entry.product,
+        back: "#stock",
+        backLabel: "Назад на склад",
+        said: cap(entry.zone),
+        chips: [
+          burning ? `<span class="chip chip--alarm">${esc(M.expiryLabel(entry, now))}</span>` : `<span class="chip">${esc(M.expiryLabel(entry, now))}</span>`,
+          entry.opened ? `<span class="chip">открыт</span>` : "",
+          entry.qty ? `<span class="chip num">${esc(entry.qty)}</span>` : "",
+        ].join(""),
+      });
 
     const main = html`${raw(f.share == null ? "" : `<div class="strip"><div class="bar" data-tone="${f.tone === "calm" ? "" : "accent"}"><i style="transform:scaleX(${f.share})"></i></div></div>`)}
 

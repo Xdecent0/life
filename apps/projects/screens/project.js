@@ -10,6 +10,7 @@
 // Obsidian ради строчки из шапки.
 
 import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { cardScreen } from "../../../core/screens/card.js";
 import { touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
@@ -210,7 +211,7 @@ export default {
 
     if (!p) {
       return html`<main class="screen">
-        <header class="head"><h1>Не нашлось</h1></header>
+        ${raw(pageHead({ title: `Не нашлось` }))}
         <div class="body"><div class="empty"><h2>Такого проекта нет</h2><p>Он мог переехать или закрыться — следующий снимок покажет.</p><a class="btn" href="#board">К проектам</a></div></div>
       </main>`;
     }
@@ -218,18 +219,17 @@ export default {
     const group = M.groupOf(p);
     const pending = M.pendingFor(state, p);
 
-    const head = html`<header class="head head--dark">
-      <div class="head-row">
-        <a class="icon-btn icon-btn--sm" href="#board" aria-label="Ко всем проектам">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
-        <span class="head-sub">${[p.пространство, p.раздел].filter(Boolean).join(" · ")}</span>
-      </div>
-      <h1>${p.имя}</h1>
-      <div class="chips">
-        ${raw([...M.GROUPS, "готово"].map((g) =>
-          `<button class="chip chip--sm" type="button" data-act="status" data-group="${esc(g)}" aria-pressed="${group === g}">${esc(g)}</button>`).join(""))}
-        ${raw(pending ? `<span class="chip chip--sm">ждёт волта: ${pending}</span>` : "")}
-      </div>
-    </header>`;
+    const head = pageHead({
+      title: p.имя,
+      back: "#board",
+      backLabel: "Ко всем проектам",
+      said: [p.пространство, p.раздел].filter(Boolean).join(" · "),
+      chips: [
+        ...[...M.GROUPS, "готово"].map((g) =>
+          `<button class="chip chip--sm" type="button" data-act="status" data-group="${esc(g)}" aria-pressed="${group === g}">${esc(g)}</button>`),
+        pending ? `<span class="chip chip--sm">ждёт волта: ${pending}</span>` : "",
+      ].join(""),
+    });
 
     const work = html`${raw(milestonesPane(state, p))}
       ${raw(deedsPane(state, p))}

@@ -5,6 +5,7 @@
 // нажатием, не выпадая из списка: в нём остаётся история и оценка.
 
 import { html, raw, icon, esc, toast, wide } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { touch, commit, uid } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
 import * as M from "../lib/model.js";
@@ -57,7 +58,7 @@ function addbar(flat = false) {
 
 function emptyScreen() {
   return html`<main class="screen">
-    <header class="head head--dark"><h1>Места</h1><span class="head-sub">пусто</span></header>
+    ${raw(pageHead({ title: `Места`, said: `пусто` }))}
     <div class="body">
       <div class="empty">
         <h2>Список пустой</h2>
@@ -97,12 +98,7 @@ function phone(state) {
     ${raw(g.entries.map((p) => row(p, state, now)).join(""))}`).join("");
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div>
-        <h1>Места</h1>
-        <span class="head-sub num">${M.wanted(state).length} хочу · ${M.visited(state).length} был${calls.length ? ` · ${calls.length} зовёт` : ""}</span>
-      </div>
-    </header>
+    ${raw(pageHead({ title: "Места", said: `${M.wanted(state).length} хочу · ${M.visited(state).length} был${calls.length ? ` · ${calls.length} зовёт` : ""}` }))}
 
     <div class="body">
       <div class="groupbar">${raw(groupSwitch())}</div>
@@ -158,22 +154,19 @@ function desk(state) {
   }).join("");
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Места</h1>
-          <span class="head-sub num">${M.wanted(state).length} хочу · ${M.visited(state).length} был${calls.length ? ` · ${calls.length} зовёт обратно` : ""}</span>
-        </div>
-        <form class="search" data-act-submit="search" role="search">
+    ${raw(pageHead({
+      title: "Места",
+      said: `${M.wanted(state).length} хочу · ${M.visited(state).length} был${calls.length ? ` · ${calls.length} зовёт обратно` : ""}`,
+      actions: headLink("Куда сходить", "#togo"),
+      bar: `<form class="search search--head" data-act-submit="search" role="search">
           <label class="sr-only" for="places-q">Поиск по местам</label>
-          ${raw(icon("i-search", { size: 16, stroke: "#5f7468" }))}
-          <input class="search-field" id="places-q" name="q" value="${query}" placeholder="Поиск" autocomplete="off">
+          ${icon("i-search", { size: 16, stroke: "#a9bcaf" })}
+          <input class="search-field" id="places-q" name="q" value="${esc(query)}" placeholder="Поиск" autocomplete="off">
           <kbd>/</kbd>
-        </form>
-      </div>
-    </header>
+        </form>`,
+    }))}
 
-    <div class="toolbar">
+    <div class="workbar">
       ${raw(addbar(true))}
       <span class="toolbar-sep" aria-hidden="true"></span>
       ${raw(groupSwitch())}

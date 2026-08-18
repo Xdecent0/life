@@ -5,6 +5,7 @@
 // arrangement the kitchen's shelf already proved.
 
 import { html, raw, icon, esc, fmtMoney, toast, wide, fmtAlso } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { touch, commit, uid } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
 import * as M from "../lib/model.js";
@@ -63,7 +64,7 @@ function addbar(state, flat = false) {
 
 function emptyScreen(state) {
   return html`<main class="screen">
-    <header class="head head--dark"><h1>Вещи</h1><span class="head-sub">пусто</span></header>
+    ${raw(pageHead({ title: `Вещи`, said: `пусто` }))}
     <div class="body">
       <div class="empty">
         <h2>Я пока не знаю, что у тебя есть</h2>
@@ -101,15 +102,15 @@ function phone(state) {
     ${raw(g.entries.map((t) => row(t, state)).join(""))}`).join("");
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div>
-        <h1>Вещи</h1>
-        <span class="head-sub num">${things.length} ${M.plural(things.length, "вещь", "вещи", "вещей")}${running.length ? ` · ${running.length} по гарантии кончается` : ""}</span>
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Вещи",
+      said: `${things.length} ${M.plural(things.length, "вещь", "вещи", "вещей")}${running.length ? ` · ${running.length} по гарантии кончается` : ""}`,
+      actions: headLink("Гарантии", "#warranty"),
+    }))}
+
+    <div class="workbar">${raw(groupSwitch())}</div>
 
     <div class="body">
-      <div class="groupbar">${raw(groupSwitch())}</div>
       ${raw(body || `<div class="empty"><h2>Ничего не нашлось</h2><p>По этому фильтру пусто.</p></div>`)}
       ${raw(addbar(state))}
     </div>
@@ -186,22 +187,19 @@ function desk(state) {
   }).join("");
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Вещи</h1>
-          <span class="head-sub num">${things.length} ${M.plural(things.length, "вещь", "вещи", "вещей")}${running.length ? ` · ${running.length} по гарантии кончается` : ""}</span>
-        </div>
-        <form class="search" data-act-submit="search" role="search">
+    ${raw(pageHead({
+      title: "Вещи",
+      said: `${things.length} ${M.plural(things.length, "вещь", "вещи", "вещей")}${running.length ? ` · ${running.length} по гарантии кончается` : ""}`,
+      actions: headLink("Гарантии", "#warranty"),
+      bar: `<form class="search search--head" data-act-submit="search" role="search">
           <label class="sr-only" for="things-q">Поиск по вещам</label>
-          ${raw(icon("i-search", { size: 16, stroke: "#5f7468" }))}
-          <input class="search-field" id="things-q" name="q" value="${query}" placeholder="Поиск" autocomplete="off">
+          ${icon("i-search", { size: 16, stroke: "#a9bcaf" })}
+          <input class="search-field" id="things-q" name="q" value="${esc(query)}" placeholder="Поиск" autocomplete="off">
           <kbd>/</kbd>
-        </form>
-      </div>
-    </header>
+        </form>`,
+    }))}
 
-    <div class="toolbar">
+    <div class="workbar">
       ${raw(addbar(state, true))}
       <span class="toolbar-sep" aria-hidden="true"></span>
       ${raw(groupSwitch())}

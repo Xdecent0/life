@@ -2,6 +2,7 @@
 // steps down by itself — which is the whole reason cooking is tracked at all.
 
 import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { pageHead } from "../../../core/screens/head.js";
 import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { applyCooking, match } from "../lib/recipes.js";
@@ -21,7 +22,7 @@ export default {
     const recipe = find(state, id);
     if (!recipe) {
       return html`<main class="screen">
-        <header class="head"><h1>Рецепт не найден</h1></header>
+        ${raw(pageHead({ title: "Рецепт не найден", said: "ссылка устарела", back: "#recipes", backLabel: "К рецептам" }))}
         <div class="body"><div class="empty"><h2>Готовить нечего</h2><p>Рецепт не найден — возможно, ссылка устарела.</p><a class="btn" href="#recipes">К рецептам</a></div></div>
       </main>`;
     }
@@ -33,7 +34,7 @@ export default {
 
     if (!total) {
       return html`<main class="screen">
-        <header class="head"><h1>${recipe.name}</h1></header>
+        ${raw(pageHead({ title: recipe.name, said: "шагов не записано", back: `#recipe/${recipe.id}`, backLabel: "К рецепту" }))}
         <div class="body"><div class="empty"><h2>Шагов не записано</h2><p>В заметке рецепта нет раздела с шагами. Можно готовить по памяти и просто отметить, что блюдо сделано.</p></div></div>
         <div class="foot"><button class="btn btn--grow" type="button" data-act="done">Готово</button></div>
       </main>`;
@@ -42,16 +43,15 @@ export default {
     const current = Math.min(step, total - 1);
 
     return html`<main class="screen">
-      <header class="head">
-        <div class="head-row">
-          <a class="icon-btn icon-btn--sm" href="#recipe/${recipe.id}" aria-label="Выйти из готовки">${raw(icon("i-close", { size: 18, stroke: "#1c3327" }))}</a>
-          <span class="head-sub num">шаг ${current + 1} из ${total}</span>
-        </div>
-        <h1 class="h1--sm">${recipe.name}</h1>
-        <div class="steps" role="img" aria-label="Шаг ${current + 1} из ${total}">
-          ${raw(recipe.steps.map((_, i) => `<i data-on="${i <= current ? 1 : 0}"></i>`).join(""))}
-        </div>
-      </header>
+      ${raw(pageHead({
+        title: recipe.name,
+        back: `#recipe/${recipe.id}`,
+        backLabel: "Выйти из готовки",
+        said: `шаг ${current + 1} из ${total}`,
+        bar: `<div class="steps" role="img" aria-label="Шаг ${current + 1} из ${total}">
+          ${recipe.steps.map((_, i) => `<i data-on="${i <= current ? 1 : 0}"></i>`).join("")}
+        </div>`,
+      }))}
 
       <div class="body">
         <p class="cook-step">${recipe.steps[current]}</p>
@@ -121,7 +121,7 @@ export default {
 
 function finished(recipe) {
   return html`<main class="screen">
-    <header class="head"><h1>Готово</h1><span class="head-sub">${recipe.name}</span></header>
+    ${raw(pageHead({ title: "Готово", said: recipe.name, back: `#recipe/${recipe.id}`, backLabel: "К рецепту" }))}
     <div class="body">
       <div class="pane pane--calm">
         <div class="label">Что записано</div>

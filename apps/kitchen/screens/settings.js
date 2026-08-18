@@ -7,6 +7,7 @@
 // outbox. So sections on the left, real tables in the middle, provenance right.
 
 import { html, raw, icon, esc, toast, wide, fmtDate } from "../../../core/dom.js";
+import { pageHead } from "../../../core/screens/head.js";
 import { commit, uid, touch, get, replace } from "../../../core/state.js";
 import { demoState, reset as resetStore, EMPTY_STATE, size as stateSize } from "../lib/store.js";
 import * as log from "../../../core/log.js";
@@ -247,7 +248,11 @@ function phone(state) {
   const others = state.people.filter((p) => !p.self);
 
   return html`<main class="screen">
-    <header class="head"><h1>Настройки</h1></header>
+    ${raw(pageHead({ title: "Настройки", said: `${bytes(stateSize())} данных` }))}
+
+    <div class="workbar">
+      <span class="toolbar-hint">${state.queue.length ? `${state.queue.length} правок ждут отправки` : "очередь пуста"}</span>
+    </div>
 
     <div class="body">
       ${raw(demoWarning(state))}
@@ -632,16 +637,13 @@ function desk(state) {
   const current = SECTIONS.find((s) => s.key === section);
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Настройки</h1>
-          <span class="head-sub">${current?.name ?? ""}</span>
-        </div>
-      </div>
-    </header>
+    ${raw(pageHead({ title: "Настройки", said: current?.name ?? "" }))}
 
-    ${raw(state.demo ? `<div class="notice notice--alarm">Загружены демо-данные, синхронизация заблокирована. <button class="linkbtn" type="button" data-act="startClean">Очистить и начать с нуля</button></div>` : "")}
+    <div class="workbar">
+      ${raw(state.demo
+        ? `<span class="toolbar-hint">Загружены демо-данные, синхронизация заблокирована. <button class="linkbtn" type="button" data-act="startClean">Очистить и начать с нуля</button></span>`
+        : `<span class="toolbar-hint">${esc(bytes(stateSize()))} данных · ${state.queue.length ? `${state.queue.length} правок ждут отправки` : "очередь пуста"}</span>`)}
+    </div>
 
     <div class="split">
       <nav class="setnav" aria-label="Разделы настроек">${raw(rail)}</nav>

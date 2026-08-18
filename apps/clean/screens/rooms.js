@@ -2,6 +2,7 @@
 // оставался тем, на что смотрят, а не тем, что настраивают.
 
 import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { blankSpot } from "../lib/store.js";
@@ -16,10 +17,12 @@ export default {
     const rooms = M.roomsOf(state);
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <h1>Комнаты</h1>
-        <span class="head-sub num">${rooms.length} ${M.plural(rooms.length, "комната", "комнаты", "комнат")} · ${M.alive(state).length} ${M.plural(M.alive(state).length, "поверхность", "поверхности", "поверхностей")}</span>
-      </header>
+      ${raw(pageHead({
+        title: "Комнаты",
+        said: `${rooms.length} ${M.plural(rooms.length, "комната", "комнаты", "комнат")} · ${M.alive(state).length} ${M.plural(M.alive(state).length, "поверхность", "поверхности", "поверхностей")}`,
+        back: "#map",
+        backLabel: "К карте",
+      }))}
 
       <div class="body">
         ${raw(rooms.map((room) => {

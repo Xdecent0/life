@@ -12,6 +12,7 @@ import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import * as T from "../lib/trip.js";
 import * as W from "../lib/waste.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { priceHistory } from "../lib/planning.js";
 import * as S from "../lib/share.js";
 import * as gh from "../../../core/github.js";
@@ -206,28 +207,24 @@ function phone(state) {
       ].join("");
 
   return html`<main class="screen">
-    <header class="head">
-      <div class="head-row">
-        <h1>Магазин</h1>
-        <span class="toolbar-gap"></span>
-        <span class="head-sub num">${done.length} / ${entries.length}</span>
-        <button class="icon-btn icon-btn--sm" type="button" data-act="share" aria-label="Поделиться списком">
-          ${raw(icon("i-share", { size: 18, stroke: "#1c3327" }))}
-        </button>
-      </div>
-      <div class="bar"><i style="transform:scaleX(${share})"></i></div>
-    </header>
+    ${raw(pageHead({
+      title: "Магазин",
+      said: `${done.length} / ${entries.length} отмечено`,
+      actions: headBtn("Поделиться", 'data-act="share"'),
+      bar: `<div class="bar bar--head"><i style="transform:scaleX(${share})"></i></div>`,
+    }))}
 
-    ${raw(others.length ? `<div class="notice">${esc(others.map((p) => p.name).join(", "))} тоже видит этот список — отметки сливаются, ничего не теряется</div>` : "")}
-    ${raw(auditInvite(state))}
-
-    <form class="addbar" data-act-submit="add">
-      <input class="field" name="product" placeholder="Добавить продукт" aria-label="Добавить продукт" autocomplete="off" required>
-      <input class="field field--qty" name="qty" placeholder="сколько" aria-label="Количество" autocomplete="off">
-      <button class="icon-btn" type="submit" aria-label="Добавить">${raw(icon("i-plus", { size: 22, stroke: "#1c3327" }))}</button>
-    </form>
+    <div class="workbar workbar--form">
+      <form class="addbar addbar--flat" data-act-submit="add">
+        <input class="field" name="product" placeholder="Добавить продукт" aria-label="Добавить продукт" autocomplete="off" required>
+        <input class="field field--qty" name="qty" placeholder="сколько" aria-label="Количество" autocomplete="off">
+        <button class="btn btn--ghost btn--sm" type="submit" aria-label="Добавить">${raw(icon("i-plus", { size: 16, stroke: "#1c3327" }))}</button>
+      </form>
+    </div>
 
     <div class="body">
+      ${raw(others.length ? `<div class="notice">${esc(others.map((p) => p.name).join(", "))} тоже видит этот список — отметки сливаются, ничего не теряется</div>` : "")}
+      ${raw(auditInvite(state))}
       ${raw(phoneFeeder(state, !entries.length))}
       ${raw(body)}
     </div>
@@ -407,19 +404,13 @@ function desk(state) {
       </div>`;
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Список</h1>
-          <span class="head-sub num">${plan.pending.length} ${M.plural(plan.pending.length, "позиция", "позиции", "позиций")} · ${plan.done.length} отмечено</span>
-        </div>
-        <span class="toolbar-gap"></span>
-        <button class="btn btn--ghost btn--sm" type="button" data-act="share">Поделиться</button>
-        <a class="btn btn--ghost btn--sm" href="#scan">Сканировать чек</a>
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Список",
+      said: `${plan.pending.length} ${M.plural(plan.pending.length, "позиция", "позиции", "позиций")} · ${plan.done.length} отмечено`,
+      actions: headBtn("Поделиться", 'data-act="share"') + headLink("Сканировать чек", "#scan"),
+    }))}
 
-    <div class="toolbar">
+    <div class="workbar">
       <form class="addbar addbar--flat" data-act-submit="add">
         <input class="field" name="product" placeholder="Добавить продукт" aria-label="Добавить продукт" autocomplete="off" required>
         <input class="field field--qty" name="qty" placeholder="сколько" aria-label="Количество" autocomplete="off">

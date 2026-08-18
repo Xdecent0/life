@@ -11,6 +11,7 @@ import { commit, uid, touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import * as P from "../lib/planning.js";
 import * as W from "../lib/waste.js";
+import { pageHead, headBtn } from "../../../core/screens/head.js";
 import { alive } from "./stock.js";
 
 let window_ = 30;
@@ -47,15 +48,15 @@ function phone(state) {
   }).join("");
 
   return html`<main class="screen">
-    <header class="head">
-      <div class="head-row">
-        <h1>Трекинг еды</h1>
-        <span class="head-sub num">${fmtMoney(s.spent)} вне дома</span>
-      </div>
-      <div class="chips" role="group" aria-label="Период">
-        ${raw([7, 30, 90].map((d) => `<button class="chip" type="button" data-act="window" data-days="${d}" aria-pressed="${window_ === d}">${d === 7 ? "неделя" : d === 30 ? "месяц" : "три месяца"}</button>`).join(""))}
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Трекинг еды",
+      said: `${fmtMoney(s.spent)} вне дома`,
+      chips: [7, 30, 90].map((d) => `<button class="chip" type="button" data-act="window" data-days="${d}" aria-pressed="${window_ === d}">${d === 7 ? "неделя" : d === 30 ? "месяц" : "три месяца"}</button>`).join(""),
+    }))}
+
+    <div class="workbar">
+      <span class="toolbar-hint">${s.total} ${esc(M.plural(s.total, "запись", "записи", "записей"))} за период · дома ${Math.round(s.homeShare * 100)}%</span>
+    </div>
 
     <div class="body">
       <div class="figures">
@@ -293,21 +294,15 @@ function desk(state) {
   const now = M.today();
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Трекинг еды</h1>
-          <span class="head-sub num">${P.trackingSummary(state.meals, window_, now).total} ${M.plural(P.trackingSummary(state.meals, window_, now).total, "приём", "приёма", "приёмов")} за период</span>
-        </div>
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Трекинг еды",
+      said: `${P.trackingSummary(state.meals, window_, now).total} ${M.plural(P.trackingSummary(state.meals, window_, now).total, "приём", "приёма", "приёмов")} за период`,
+      actions: headBtn("Записать приём", 'data-act="add"'),
+      chips: [30, 90, 180].map((d) => `<button class="chip" type="button" data-act="window" data-days="${d}" aria-pressed="${window_ === d}">${d === 30 ? "месяц" : d === 90 ? "три месяца" : "полгода"}</button>`).join(""),
+    }))}
 
-    <div class="toolbar">
-      <div class="chips" role="group" aria-label="Период">
-        ${raw([30, 90, 180].map((d) => `<button class="chip" type="button" data-act="window" data-days="${d}" aria-pressed="${window_ === d}">${d === 30 ? "месяц" : d === 90 ? "три месяца" : "полгода"}</button>`).join(""))}
-      </div>
-      <span class="toolbar-gap"></span>
-      <button class="btn btn--ghost btn--sm" type="button" data-act="add">Записать приём</button>
+    <div class="workbar">
+      <span class="toolbar-hint">Клетка дня открывает его в правой колонке · <kbd>Esc</kbd> снять выбор</span>
     </div>
 
     <div class="split">

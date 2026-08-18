@@ -2,6 +2,7 @@
 // time, and each answer sharpens the model instead of just editing a number.
 
 import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { pageHead } from "../../../core/screens/head.js";
 import { commit, uid, touch, get } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { auditCandidates } from "../lib/trip.js";
@@ -57,7 +58,7 @@ export default {
 
     if (!candidates.length) {
       return html`<main class="screen">
-        <header class="head"><h1>Ревизия не нужна</h1></header>
+        ${raw(pageHead({ title: "Ревизия не нужна", said: "всё сходится", back: "#stock", backLabel: "На склад" }))}
         <div class="body">
           <div class="empty">
             <h2>Всё сходится</h2>
@@ -74,10 +75,12 @@ export default {
     const rest = candidates.slice(cursor + 1, cursor + 4);
 
     return html`<main class="screen">
-      <header class="head">
-        <h1 class="h1--sm">Ревизия · 20 секунд</h1>
-        <span class="head-sub">По расчётам это кончилось. Отметь, что ещё есть.</span>
-      </header>
+      ${raw(pageHead({
+        title: "Ревизия",
+        back: "#stock",
+        backLabel: "На склад",
+        said: "по расчётам это кончилось — отметь, что ещё есть",
+      }))}
 
       <div class="body">
         ${raw(card(entry, state, cursor, candidates.length))}
@@ -130,7 +133,7 @@ function done(state) {
   const kept = answers.filter((a) => a.verdict === "have");
 
   return html`<main class="screen">
-    <header class="head"><h1>Готово</h1></header>
+    ${raw(pageHead({ title: "Готово", said: "прогноз снова знает, что у тебя есть", back: "#stock", backLabel: "На склад" }))}
     <div class="body">
       <div class="figures">
         <div class="figure"><span class="figure-n num">${gone.length}</span><span class="figure-t">позиций ушло со склада и попало в список</span></div>

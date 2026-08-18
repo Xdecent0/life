@@ -2,6 +2,7 @@
 // The waiting stage is honest about taking half a minute and lets you walk away.
 
 import { html, raw, icon, esc, toast, fmtMoney } from "../../../core/dom.js";
+import { pageHead } from "../../../core/screens/head.js";
 import { commit, uid, touch, get } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import * as R from "../lib/receipt.js";
@@ -78,10 +79,7 @@ function waiting() {
   ];
 
   return html`<main class="screen">
-    <header class="head">
-      <h1>Чек в обработке</h1>
-      <span class="head-sub">${job?.startedLabel ?? ""}</span>
-    </header>
+    ${raw(pageHead({ title: "Чек в обработке", said: job?.startedLabel ?? "", back: "#list", backLabel: "К списку" }))}
 
     <div class="body">
       <ol class="timeline">
@@ -112,15 +110,13 @@ function disputed() {
   const life = M.shelfLife(line.product, get().shelf, {});
 
   return html`<main class="screen">
-    <header class="head">
-      <div class="head-row">
-        <h1 class="h1--sm">Спорные строки</h1>
-        <span class="head-sub num">${cursor + 1} из ${queue.length}</span>
-      </div>
-      <div class="steps" role="img" aria-label="Строка ${cursor + 1} из ${queue.length}">
-        ${raw(queue.map((_, i) => `<i data-on="${i <= cursor ? 1 : 0}"></i>`).join(""))}
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Спорные строки",
+      said: `${cursor + 1} из ${queue.length}`,
+      bar: `<div class="steps" role="img" aria-label="Строка ${cursor + 1} из ${queue.length}">
+        ${queue.map((_, i) => `<i data-on="${i <= cursor ? 1 : 0}"></i>`).join("")}
+      </div>`,
+    }))}
 
     <div class="body">
       <div class="pane pane--calm">
@@ -159,10 +155,7 @@ function summaryStage() {
   const s = summary ?? { added: 0, removedFromList: 0, discarded: 0, learned: [] };
 
   return html`<main class="screen">
-    <header class="head">
-      <h1>Сохранено</h1>
-      <span class="head-sub">${job?.storeLabel ?? "чек разобран"}</span>
-    </header>
+    ${raw(pageHead({ title: "Сохранено", said: job?.storeLabel ?? "чек разобран", back: "#list", backLabel: "К списку" }))}
 
     <div class="body">
       <div class="figures">

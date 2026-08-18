@@ -11,6 +11,7 @@
 // much room the state takes and whether anything is still waiting to go out.
 
 import { html, raw, esc, toast, fmtDate, fmtTime } from "../dom.js";
+import { pageHead } from "./head.js";
 import { commit } from "../state.js";
 import { size } from "../store.js";
 import { pullReferences } from "../sync.js";
@@ -80,7 +81,11 @@ export function settings({ refs, panes = () => [], actions = {} } = {}) {
       const own = panes(state).filter(Boolean);
 
       return html`<main class="screen">
-        <header class="head head--dark"><h1>Настройки</h1><span class="head-sub">${app().name}</span></header>
+        ${raw(pageHead({ title: "Настройки", said: app().name }))}
+
+        <div class="workbar">
+          <span class="toolbar-hint">Здесь только то, что общее у всех приложений: ключ, пара, справочники, память</span>
+        </div>
 
         <div class="body">
           ${raw(hubPane())}

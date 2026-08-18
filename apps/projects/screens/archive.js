@@ -1,6 +1,7 @@
 // Архив: то, что закончилось. Та же строка, другой пул — иначе они разойдутся.
 
 import { html, raw, esc } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import * as M from "../lib/model.js";
 import { row } from "./row.js";
 
@@ -11,12 +12,7 @@ export default {
     const rows = M.sortBy(M.archived(state), "имя");
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Архив</h1>
-          <span class="head-sub num">${rows.length}</span>
-        </div>
-      </header>
+      ${raw(pageHead({ title: "Архив", said: `${rows.length}` }))}
 
       <div class="body">
         ${raw(rows.length

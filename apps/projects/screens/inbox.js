@@ -6,6 +6,7 @@
 // своим содержимым, ей дописывается шапка, копии не остаётся.
 
 import { html, raw, esc, toast } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import * as M from "../lib/model.js";
 import { queue } from "./row.js";
 
@@ -22,7 +23,7 @@ export default {
 
     if (!rows.length) {
       return html`<main class="screen">
-        <header class="head head--dark"><h1>Входящее</h1><span class="head-sub">пусто</span></header>
+        ${raw(pageHead({ title: `Входящее`, said: `пусто` }))}
         <div class="body">
           <div class="empty">
             <h2>Входящее разобрано</h2>
@@ -34,12 +35,7 @@ export default {
     }
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Входящее</h1>
-          <span class="head-sub num">${rows.length} ${M.plural(rows.length, "заметка", "заметки", "заметок")}</span>
-        </div>
-      </header>
+      ${raw(pageHead({ title: "Входящее", said: `${rows.length} ${M.plural(rows.length, "заметка", "заметки", "заметок")}` }))}
 
       <div class="body">
         ${raw(rows.map((r) => `<div class="row row--inbox">

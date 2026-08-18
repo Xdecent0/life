@@ -5,6 +5,7 @@
 // pointed at this screen must be ignored, not misread as a key.
 
 import { html, raw, icon, toast } from "../../../core/dom.js";
+import { pageHead } from "../../../core/screens/head.js";
 import { touch } from "../../../core/state.js";
 import * as R from "../lib/receipt.js";
 import * as gh from "../../../core/github.js";
@@ -27,7 +28,7 @@ export default {
   render() {
     if (state === "done") {
       return html`<main class="screen">
-        <header class="head"><h1>Подключено</h1></header>
+        ${raw(pageHead({ title: "Подключено", said: "ключ перенесён с компьютера" }))}
         <div class="body">
           <div class="empty">
             <h2>${note ?? ""}</h2>

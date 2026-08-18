@@ -8,6 +8,7 @@
 import { html, raw, icon, esc, toast, fmtMoney, wide } from "../../../core/dom.js";
 import { commit, uid, touch, get } from "../../../core/state.js";
 import * as M from "../lib/model.js";
+import { pageHead, headBtn } from "../../../core/screens/head.js";
 import { rank, filterRecipes, match, shoppingGap } from "../lib/recipes.js";
 import { alive } from "./stock.js";
 import { lastPrice } from "../lib/trip.js";
@@ -74,18 +75,21 @@ function phone(state) {
       : list.map(card).join("");
 
   return html`<main class="screen">
-    <header class="head">
-      <h1>Что приготовить</h1>
-      <div class="chips" role="group" aria-label="Фильтр рецептов">
-        ${raw(FILTERS.map((f) => `<button class="chip" type="button" data-act="filter" data-filter="${f.key}" aria-pressed="${filter === f.key}">${esc(f.label)}</button>`).join(""))}
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Что приготовить",
+      chips: FILTERS.map((f) => `<button class="chip" type="button" data-act="filter" data-filter="${f.key}" aria-pressed="${filter === f.key}">${esc(f.label)}</button>`).join(""),
+    }))}
 
-    ${raw(burning.length
-      ? `<div class="notice notice--alarm">${esc(burning.slice(0, 2).map((b) => `${b.product} — ${M.expiryLabel(b)}`).join(", "))} · начнём с них</div>`
-      : fellBack ? `<div class="notice">Ничего не горит — показываю всё, что собирается из того, что есть</div>` : "")}
+    <div class="workbar">
+      <span class="toolbar-hint">${list.length} ${esc(M.plural(list.length, "блюдо", "блюда", "блюд")) } собирается из того, что есть</span>
+    </div>
 
-    <div class="body">${raw(body)}</div>
+    <div class="body">
+      ${raw(burning.length
+        ? `<div class="notice notice--alarm">${esc(burning.slice(0, 2).map((b) => `${b.product} — ${M.expiryLabel(b)}`).join(", "))} · начнём с них</div>`
+        : fellBack ? `<div class="notice">Ничего не горит — показываю всё, что собирается из того, что есть</div>` : "")}
+      ${raw(body)}
+    </div>
 
     <div class="foot">
       <button class="btn btn--grow" type="button" data-act="importPrompt" ${raw(importing ? "disabled" : "")}>
@@ -97,14 +101,14 @@ function phone(state) {
 
 /* ---------- desktop ---------- */
 
-function reel(state, list) {
+function reel(state, list, notice = "") {
   if (!list.length) {
     return html`<div class="reel">
       <div class="feed-empty"><p class="prose">${state.recipes.length ? "Под этот фильтр ничего не подходит." : "Рецептов ещё нет. Они живут markdown-заметками в волте, в папке Рецепты."}</p></div>
     </div>`;
   }
 
-  return html`<div class="reel">${raw(list.map((entry, i) => {
+  return html`<div class="reel">${raw(notice)}${raw(list.map((entry, i) => {
     const { recipe, match: m, rescues } = entry;
     const on = basket.has(recipe.id);
 
@@ -230,33 +234,21 @@ function desk(state) {
   const entry = list[cursor] ?? null;
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Рецепты</h1>
-          <span class="head-sub num">${list.length} ${M.plural(list.length, "блюдо", "блюда", "блюд")} · ${basket.size ? `${basket.size} в наборе` : "набор пуст"}</span>
-        </div>
-        <span class="toolbar-gap"></span>
-        <button class="btn btn--ghost btn--sm" type="button" data-act="importPrompt" ${raw(importing ? "disabled" : "")}>
-          ${importing ? "Импортирую…" : "Импорт по ссылке"}
-        </button>
-      </div>
-    </header>
+    ${raw(pageHead({
+      title: "Рецепты",
+      said: `${list.length} ${M.plural(list.length, "блюдо", "блюда", "блюд")} · ${basket.size ? `${basket.size} в наборе` : "набор пуст"}`,
+      actions: headBtn(importing ? "Импортирую…" : "Импорт по ссылке", `data-act="importPrompt" data-busy="${importing ? 1 : 0}" ${importing ? "disabled" : ""}`),
+      chips: FILTERS.map((f) => `<button class="chip" type="button" data-act="filter" data-filter="${f.key}" aria-pressed="${filter === f.key}">${esc(f.label)}</button>`).join(""),
+    }))}
 
-    <div class="toolbar">
-      <div class="chips" role="group" aria-label="Фильтр рецептов">
-        ${raw(FILTERS.map((f) => `<button class="chip" type="button" data-act="filter" data-filter="${f.key}" aria-pressed="${filter === f.key}">${esc(f.label)}</button>`).join(""))}
-      </div>
-      <span class="toolbar-gap"></span>
-      <span class="toolbar-hint"><kbd>↑↓</kbd> ходить · <kbd>Space</kbd> в набор</span>
+    <div class="workbar">
+      <span class="toolbar-hint"><kbd>↑↓</kbd> ходить · <kbd>Space</kbd> в набор · <kbd>Enter</kbd> открыть</span>
     </div>
 
-    ${raw(burning.length
-      ? `<div class="notice notice--alarm">${esc(burning.slice(0, 3).map((b) => `${b.product} — ${M.expiryLabel(b)}`).join(", "))}</div>`
-      : fellBack ? `<div class="notice">Ничего не горит — показываю всё, что собирается из того, что есть</div>` : "")}
-
     <div class="split">
-      ${raw(reel(state, list))}
+      ${raw(reel(state, list, burning.length
+        ? `<div class="notice notice--alarm">${esc(burning.slice(0, 3).map((b) => `${b.product} — ${M.expiryLabel(b)}`).join(", "))}</div>`
+        : fellBack ? `<div class="notice">Ничего не горит — показываю всё, что собирается</div>` : ""))}
       ${raw(reading(state, entry))}
       <aside class="inspector" aria-label="Набор">${raw(railBasket(state))}</aside>
     </div>

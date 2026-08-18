@@ -146,11 +146,17 @@ a {
   text-underline-offset: 2px;
 }
 
+/* Старая шапка, пока экраны переезжают на core/screens/head.js. Ритм у неё уже
+   общий: та же высота, что у .pagehead, иначе переход между переехавшим и ещё
+   не переехавшим экраном снова двигал бы контент. */
+
 .head {
+  min-height: calc(var(--head-name) + var(--head-bar));
   padding: calc(16px + env(safe-area-inset-top)) var(--pad) 14px;
   border-bottom: 1px solid var(--line);
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 10px;
 }
 
@@ -657,6 +663,252 @@ a {
   color: var(--ink-4);
 }
 
+/* ---------- шапка страницы ---------- */
+
+/* Один ритм на все экраны (core/screens/head.js). Высоты здесь заданы жёстко и
+   это главное свойство компонента: содержимое разных экранов должно начинаться
+   на одной и той же точке. Раньше каждый экран верстал шапку сам — 78 px без
+   подписи, 85 с подписью, панель под ней то 58, то 67, то никакой — и контент
+   прыгал на 63 px при каждом переходе. */
+
+:root {
+  --head-name: 72px;
+  --head-bar: 60px;
+}
+
+.pagehead {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  background: var(--ink);
+  color: var(--on-dark);
+  padding-top: env(safe-area-inset-top);
+}
+
+.pagehead[data-tone="light"] {
+  background: var(--bg);
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+}
+
+.pagehead-name {
+  height: var(--head-name);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 var(--pad);
+}
+
+.pagehead-title {
+  margin: 0;
+  font-size: var(--t-title);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  /* Длинное имя укорачивается, а не переносится: перенос — это и есть та самая
+     вторая высота, из-за которой всё едет. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.pagehead-back {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(244, 241, 230, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.pagehead[data-tone="light"] .pagehead-back {
+  border-color: var(--line-firm);
+}
+
+.pagehead-acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+/* Ряд управления есть всегда: где нет фильтров, там стоит строка смысла.
+   Пустым он не бывает — иначе это была бы полоса ради симметрии. */
+.pagehead-bar {
+  height: var(--head-bar);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 var(--pad);
+  border-top: 1px solid rgba(244, 241, 230, 0.12);
+  /* Фильтров может быть больше, чем ширины: они уезжают вбок внутри своей
+     полосы, а не переносятся на вторую строку и не растягивают шапку. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.pagehead-bar::-webkit-scrollbar { display: none; }
+
+.pagehead[data-tone="light"] .pagehead-bar {
+  border-top-color: var(--line-soft);
+}
+
+.pagehead-said {
+  font-size: var(--t-body);
+  color: var(--on-dark-3);
+  white-space: nowrap;
+  flex: none;
+}
+
+.pagehead[data-tone="light"] .pagehead-said {
+  color: var(--ink-4);
+}
+
+.pagehead-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  flex: none;
+}
+
+.pagehead-bar .chips {
+  flex-wrap: nowrap;
+  flex: none;
+}
+
+.pagehead .chip {
+  border-color: rgba(244, 241, 230, 0.3);
+  color: var(--on-dark);
+  white-space: nowrap;
+}
+
+.pagehead .chip[aria-pressed="true"] {
+  background: var(--on-dark);
+  color: var(--ink);
+  border-color: var(--on-dark);
+}
+
+.pagehead[data-tone="light"] .chip {
+  border-color: var(--line-firm);
+  color: var(--ink);
+}
+
+.pagehead[data-tone="light"] .chip[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-dark);
+  border-color: var(--ink);
+}
+
+/* Кнопка шапки — своя высота, чтобы ряд имени не менял высоту от того,
+   обычная там кнопка или иконка. */
+.btn--head {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: var(--t-body);
+  font-weight: 500;
+  background: none;
+  color: inherit;
+  border: 1px solid rgba(244, 241, 230, 0.28);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pagehead[data-tone="light"] .btn--head {
+  border-color: var(--line-firm);
+}
+
+@media (max-width: 700px) {
+  :root {
+    --head-name: 60px;
+    --head-bar: 52px;
+  }
+}
+
+/* Форма в рабочей полосе тянется во всю ширину — это её работа, а не украшение. */
+.workbar--form,
+.workbar--form > form {
+  width: 100%;
+}
+
+.workbar--form > form { flex: 1; }
+
+/* Рабочая полоса под шапкой: поиск, форма добавления, подсказка клавиш.
+   Тоже фиксированной высоты — иначе экраны, у которых она есть, снова начинают
+   расходиться между собой. Это не шапка: здесь живёт работа, а не имя. */
+
+.workbar {
+  height: 60px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--pad);
+  border-bottom: 1px solid var(--line-soft);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.workbar::-webkit-scrollbar { display: none; }
+
+.workbar > form { flex: none; }
+
+/* Полоска прогресса внутри ряда управления шапки. */
+.bar--head {
+  flex: 1;
+  min-width: 80px;
+  background: rgba(244, 241, 230, 0.18);
+}
+
+.pagehead[data-tone="light"] .bar--head {
+  background: rgba(28, 51, 39, 0.12);
+}
+
+.bar--head > i { background: var(--on-dark); }
+
+.pagehead[data-tone="light"] .bar--head > i { background: var(--ink); }
+
+/* Поиск, живущий в ряду управления шапки: на тёмном и без своей рамки-коробки. */
+.search--head {
+  background: rgba(244, 241, 230, 0.1);
+  border-color: rgba(244, 241, 230, 0.2);
+  color: var(--on-dark);
+  min-width: 200px;
+}
+
+.search--head .search-field {
+  color: var(--on-dark);
+}
+
+.search--head .search-field::placeholder {
+  color: var(--on-dark-3);
+}
+
+.search--head kbd {
+  border-color: rgba(244, 241, 230, 0.25);
+  color: var(--on-dark-3);
+}
+
+/* Камера — единственный экран со своей чёрной обвязкой: под ней живое видео, и
+   кремовая полоса поверх него читалась бы как ошибка. Ритм при этом общий,
+   поэтому высоты те же, что у .pagehead. */
+
+.head--onblack {
+  height: var(--head-name);
+  padding: env(safe-area-inset-top) var(--pad) 0;
+  justify-content: center;
+  border-bottom: 0;
+}
+
 /* ---------- строка с выводом ---------- */
 
 /* Утверждение и объяснение под ним: «Творог · 2 раза · 144 ₴», а следующей
@@ -843,7 +1095,11 @@ a {
 /* The line that says how the shelf is laid out, and changes it. */
 
 .groupbar {
-  padding: 14px var(--pad) 8px;
+  height: 60px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--pad);
 }
 
 /* The layout switch on the left, the one thing this screen can create on the
@@ -1145,13 +1401,19 @@ a {
 /* ---------- desktop table and inspector ---------- */
 
 .toolbar {
+  height: 60px;
+  flex: none;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px var(--pad);
+  padding: 0 var(--pad);
   border-bottom: 1px solid var(--line-soft);
-  flex-wrap: wrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
+
+.toolbar::-webkit-scrollbar { display: none; }
 
 .toolbar-sep {
   width: 1px;

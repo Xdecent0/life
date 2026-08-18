@@ -1,6 +1,7 @@
 // Дела: все разом, а не по одному проекту. Срок красит только просроченное.
 
 import { html, raw, esc, toast, wide } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { touch } from "../../../core/state.js";
 import { cursor, hint } from "../../../core/keys.js";
 import * as M from "../lib/model.js";
@@ -66,21 +67,19 @@ export default {
     const at = nav.on(rows);
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Дела</h1>
-          <span class="head-sub num">${M.openDeeds(state).length} открыто${late ? ` · ${late} просрочено` : ""}</span>
-        </div>
-        <div class="seg" role="group" aria-label="Что показывать">
+      ${raw(pageHead({
+        title: "Дела",
+        said: `${M.openDeeds(state).length} открыто${late ? ` · ${late} просрочено` : ""}`,
+        bar: `<div class="seg" role="group" aria-label="Что показывать">
           <button class="seg-btn" type="button" data-act="filter" data-done="0" aria-pressed="${!showDone}">Открытые</button>
           <button class="seg-btn" type="button" data-act="filter" data-done="1" aria-pressed="${showDone}">Все</button>
         </div>
         <div class="seg seg--sm" role="group" aria-label="Как показывать">
           <span class="seg-label">видом</span>
-          ${raw(["список", "календарём"].map((v) =>
-            `<button class="seg-btn" type="button" data-act="view" data-view="${v}" aria-pressed="${view === v}">${v}</button>`).join(""))}
-        </div>
-      </header>
+          ${["список", "календарём"].map((v) =>
+            `<button class="seg-btn" type="button" data-act="view" data-view="${v}" aria-pressed="${view === v}">${v}</button>`).join("")}
+        </div>`,
+      }))}
 
       <div class="body">
         ${raw(view === "календарём" ? grid(state) : rows.length ? `<section class="pane">

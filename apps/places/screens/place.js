@@ -1,6 +1,7 @@
 // Одно место на телефоне: сколько раз был, как оно, звать ли обратно.
 
 import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { cardScreen } from "../../../core/screens/card.js";
 import { commit } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
@@ -16,7 +17,7 @@ export default {
     const place = find(state, id);
     if (!place) {
       return html`<main class="screen">
-        <header class="head"><h1>Не нашлось</h1></header>
+        ${raw(pageHead({ title: `Не нашлось` }))}
         <div class="body"><div class="empty"><h2>Такого места нет</h2><p>Его удалили, или ссылка старая.</p><a class="btn" href="#places">К местам</a></div></div>
       </main>`;
     }
@@ -24,18 +25,17 @@ export default {
     const now = M.today();
     const visits = M.visitsOf(place);
 
-    const head = html`<header class="head">
-        <div class="head-row">
-          <a class="icon-btn icon-btn--sm" href="#places" aria-label="Назад к местам">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
-          <span class="head-sub">${M.kindOf(place, state.kinds ?? []).name}</span>
-        </div>
-        <h1>${place.name}</h1>
-        <div class="chips">
-          ${raw(place.rating ? `<span class="chip">${"★".repeat(place.rating)}</span>` : "")}
-          ${raw(place.area ? `<span class="chip">${esc(place.area)}</span>` : "")}
-          ${raw(M.callsBack(place, now) ? `<span class="chip chip--alarm">зовёт обратно</span>` : "")}
-        </div>
-      </header>`;
+    const head = pageHead({
+      title: `${place.name}`,
+      back: "#places",
+      backLabel: "Назад к местам",
+      said: `${M.kindOf(place, state.kinds ?? []).name}`,
+      chips: [
+        place.rating ? `<span class="chip">${"★".repeat(place.rating)}</span>` : "",
+        place.area ? `<span class="chip">${esc(place.area)}</span>` : "",
+        M.callsBack(place, now) ? `<span class="chip chip--alarm">зовёт обратно</span>` : "",
+      ].join(""),
+    });
 
     const main = html`<section class="pane">
           <div class="label">Как оно</div>

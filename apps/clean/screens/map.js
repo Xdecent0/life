@@ -6,6 +6,7 @@
 // а «на кухне пол и плита, в ванной всё нормально».
 
 import { html, raw, icon, esc, toast, wide } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { touch, commit, uid } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { moveIn } from "../lib/store.js";
@@ -80,7 +81,7 @@ function spotRow(spot, now) {
 
 function emptyScreen() {
   return html`<main class="screen">
-    <header class="head head--dark"><h1>Уборка</h1><span class="head-sub">карта пустая</span></header>
+    ${raw(pageHead({ title: `Уборка`, said: `карта пустая` }))}
     <div class="body">
       <div class="empty">
         <h2>Дом ещё не описан</h2>
@@ -106,14 +107,17 @@ export default {
     const soon = due.slice(0, wide.matches ? 6 : 3);
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Уборка</h1>
-          <span class="head-sub num">${due.length
-            ? `${due.length} ${M.plural(due.length, "дело", "дела", "дел")} ждёт`
-            : "всё в порядке"}</span>
-        </div>
-      </header>
+      ${raw(pageHead({
+        title: "Уборка",
+        said: due.length ? `${due.length} ${M.plural(due.length, "дело", "дела", "дел")} ждёт` : "всё в порядке",
+        actions: headLink("План на вечер", "#today"),
+      }))}
+
+      <div class="workbar">
+        <span class="toolbar-hint">${M.alive(state).length} ${esc(M.plural(M.alive(state).length, "поверхность", "поверхности", "поверхностей"))} в ${rooms.length} ${esc(M.plural(rooms.length, "комнате", "комнатах", "комнатах"))}</span>
+        <span class="toolbar-gap"></span>
+        <a class="linkbtn" href="#rooms">Комнаты целиком</a>
+      </div>
 
       <div class="body">
         ${raw(due.length ? `<div class="aisle">Пора</div>

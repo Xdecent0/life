@@ -2,6 +2,7 @@
 // one tap from the shopping list.
 
 import { html, raw, icon, esc, toast } from "../../../core/dom.js";
+import { pageHead } from "../../../core/screens/head.js";
 import { commit, uid } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 import { match, rescues } from "../lib/recipes.js";
@@ -16,7 +17,7 @@ export default {
     const recipe = find(state, id);
     if (!recipe) {
       return html`<main class="screen">
-        <header class="head"><h1>Рецепт не найден</h1></header>
+        ${raw(pageHead({ title: "Рецепт не найден", said: "ссылка устарела", back: "#recipes", backLabel: "К рецептам" }))}
         <div class="body"><div class="empty"><h2>Такого рецепта нет</h2><p>Возможно, он удалён или ссылка устарела.</p><a class="btn" href="#recipes">К рецептам</a></div></div>
       </main>`;
     }
@@ -37,13 +38,12 @@ export default {
     }).join("");
 
     return html`<main class="screen">
-      <header class="head">
-        <div class="head-row">
-          <a class="icon-btn icon-btn--sm" href="#recipes" aria-label="Назад к рецептам">${raw(icon("i-back", { size: 18, stroke: "#1c3327" }))}</a>
-        </div>
-        <h1>${recipe.name}</h1>
-        <span class="head-sub num">${[recipe.minutes ? `${recipe.minutes} мин` : null, recipe.servings ? `${recipe.servings} ${M.plural(recipe.servings, "порция", "порции", "порций")}` : null, recipe.difficulty].filter(Boolean).join(" · ")}</span>
-      </header>
+      ${raw(pageHead({
+        title: recipe.name,
+        back: "#recipes",
+        backLabel: "Назад к рецептам",
+        said: [recipe.minutes ? `${recipe.minutes} мин` : null, recipe.servings ? `${recipe.servings} ${M.plural(recipe.servings, "порция", "порции", "порций")}` : null, recipe.difficulty].filter(Boolean).join(" · "),
+      }))}
 
       <div class="body">
         ${raw(saved.length ? `<div class="notice notice--alarm">Спасает ${esc(saved.map((s) => s.product.toLowerCase()).join(", "))} — ${esc(M.expiryLabel(saved[0]))}</div>` : "")}

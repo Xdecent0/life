@@ -6,6 +6,7 @@ import { html, raw, icon, esc, cap, fmtMoney, fmtDate, toast, wide } from "../..
 import { touch, commit, uid } from "../../../core/state.js";
 import { mark } from "../../../core/sync.js";
 import * as M from "../lib/model.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { rank, lineMatchesProduct } from "../lib/recipes.js";
 import { toStockItem } from "../lib/receipt.js";
 import { SEED_ZONES } from "../lib/store.js";
@@ -175,7 +176,7 @@ function emptyScreen(state) {
   const pending = state ? T.auditCandidates(state).length : 0;
 
   return html`<main class="screen">
-    <header class="head head--dark"><h1>Склад</h1><span class="head-sub">пусто</span></header>
+    ${raw(pageHead({ title: "Склад", said: "пока пусто" }))}
     <div class="body">
       <div class="empty">
         <h2>О запасах ничего не знаю</h2>
@@ -197,12 +198,13 @@ function auditText(state, now) {
   return d === 0 ? "ревизия сегодня" : `ревизия ${d} ${M.plural(d, "день", "дня", "дней")} назад`;
 }
 
-function filterChips() {
-  return html`<div class="chips" role="group" aria-label="Фильтр склада">
-    <button class="chip" type="button" data-act="filter" data-filter="all" aria-pressed="${filter === "all"}">всё</button>
-    <button class="chip" type="button" data-act="filter" data-filter="burning" aria-pressed="${filter === "burning"}">горит</button>
-    <button class="chip" type="button" data-act="filter" data-filter="low" aria-pressed="${filter === "low"}">кончается</button>
-  </div>`;
+/** `bare` — только кнопки: в шапке обёртку рисует она сама. */
+function filterChips({ bare = false } = {}) {
+  const buttons = [["all", "всё"], ["burning", "горит"], ["low", "кончается"]]
+    .map(([key, name]) => `<button class="chip" type="button" data-act="filter" data-filter="${key}" aria-pressed="${filter === key}">${name}</button>`)
+    .join("");
+
+  return bare ? buttons : html`<div class="chips" role="group" aria-label="Фильтр склада">${raw(buttons)}</div>`;
 }
 
 /* ---------- phone ---------- */
@@ -240,17 +242,20 @@ function phone(state) {
       </div>`;
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div>
-        <h1>Склад</h1>
-        <span class="head-sub num">${items.length} ${M.plural(items.length, "позиция", "позиции", "позиций")} · ${burning.length} ${M.plural(burning.length, "горит", "горят", "горят")} · ${auditText(state, now)}</span>
-      </div>
-      ${raw(filterChips())}
-    </header>
+    ${raw(pageHead({
+      title: "Склад",
+      said: `${items.length} ${M.plural(items.length, "позиция", "позиции", "позиций")} · ${burning.length} ${M.plural(burning.length, "горит", "горят", "горят")}`,
+      chips: filterChips({ bare: true }),
+    }))}
+
+    <div class="workbar">
+      ${raw(groupSwitch())}
+      <span class="toolbar-gap"></span>
+      <span class="toolbar-hint">${esc(auditText(state, now))}</span>
+    </div>
 
     <div class="body">
       <div class="zones">${raw(zoneCards)}</div>
-      <div class="groupbar">${raw(groupSwitch())}</div>
       ${raw(rows)}
       <!-- Under the shelf, not above it: on a phone the job is looking at what
            is there, and a field for typing things in would push the first rows
@@ -400,24 +405,20 @@ function desk(state) {
   }).join("");
 
   return html`<main class="screen">
-    <header class="head head--dark">
-      <div class="head-row">
-        <div>
-          <h1>Склад</h1>
-          <span class="head-sub num">${items.length} ${M.plural(items.length, "позиция", "позиции", "позиций")} · ${burning.length} ${M.plural(burning.length, "горит", "горят", "горят")} · ${auditText(state, now)}</span>
-        </div>
-        <form class="search" data-act-submit="search" role="search">
+    ${raw(pageHead({
+      title: "Склад",
+      said: `${items.length} ${M.plural(items.length, "позиция", "позиции", "позиций")} · ${burning.length} ${M.plural(burning.length, "горит", "горят", "горят")} · ${auditText(state, now)}`,
+      actions: headLink("Импорт чека", "#scan") + headLink("Ревизия", "#audit"),
+      bar: `<form class="search search--head" data-act-submit="search" role="search">
           <label class="sr-only" for="stock-q">Поиск по складу</label>
-          ${raw(icon("i-search", { size: 16, stroke: "#5f7468" }))}
-          <input class="search-field" id="stock-q" name="q" value="${query}" placeholder="Поиск" autocomplete="off">
+          ${icon("i-search", { size: 16, stroke: "#a9bcaf" })}
+          <input class="search-field" id="stock-q" name="q" value="${esc(query)}" placeholder="Поиск" autocomplete="off">
           <kbd>/</kbd>
-        </form>
-        <a class="btn btn--ghost btn--sm" href="#scan">Импорт чека</a>
-        <a class="btn btn--sm" href="#audit">Ревизия</a>
-      </div>
-    </header>
+        </form>`,
+      chips: filterChips({ bare: true }),
+    }))}
 
-    <div class="toolbar">
+    <div class="workbar">
       ${raw(addbar(state, true, true))}
       <span class="toolbar-sep" aria-hidden="true"></span>
       ${raw(groupSwitch())}

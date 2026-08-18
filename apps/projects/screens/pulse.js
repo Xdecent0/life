@@ -10,6 +10,7 @@
 // он бы не окупил.
 
 import { html, raw, esc } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { touch } from "../../../core/state.js";
 import * as M from "../lib/model.js";
 
@@ -198,7 +199,7 @@ export default {
 
     if (!M.projects(state).length) {
       return html`<main class="screen">
-        <header class="head head--dark"><h1>Обзор</h1><span class="head-sub">снимок не приезжал</span></header>
+        ${raw(pageHead({ title: `Обзор`, said: `снимок не приезжал` }))}
         <div class="body"><div class="empty">
           <h2>Считать пока нечего</h2>
           <p>Обзор считает по снимку доски. Он собирается на компьютере и приезжает через общий репозиторий — ключ к нему на пульте.</p>
@@ -217,12 +218,7 @@ export default {
         ${raw(deeds(state))}`;
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div>
-          <h1>Обзор</h1>
-          <span class="head-sub num">${rows.length} в работе · ${M.archived(state).length} в архиве</span>
-        </div>
-      </header>
+      ${raw(pageHead({ title: "Обзор", said: `${rows.length} в работе · ${M.archived(state).length} в архиве` }))}
 
       <div class="groupbar">
         <div class="seg seg--sm" role="group" aria-label="Что смотреть">

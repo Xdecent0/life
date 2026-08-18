@@ -38,6 +38,7 @@ life.serve({
     "../../core/keys.js",
     "../../core/health.js",
     "../../core/screens/card.js",
+    "../../core/screens/head.js",
     "../../core/screens/settings.js",
   ],
 });

@@ -5,6 +5,7 @@
 // Меняется только то, чем это нарисовано.
 
 import { html, raw, icon, esc, toast, wide } from "../../../core/dom.js";
+import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { commit, touch } from "../../../core/state.js";
 import { cursor, hint } from "../../../core/keys.js";
 import { quiet } from "../../../core/health.js";
@@ -208,7 +209,7 @@ function emptyScreen(state) {
   const known = Boolean(M.boardOf(state));
 
   return html`<main class="screen">
-    <header class="head head--dark"><h1>Проекты</h1><span class="head-sub">${known ? "пусто" : "снимок не приезжал"}</span></header>
+    ${raw(pageHead({ title: `Проекты`, said: `${known ? "пусто" : "снимок не приезжал"}` }))}
     <div class="body">
       <div class="empty">
         <h2>${known ? "Проектов нет" : "Снимок ещё не приезжал"}</h2>
@@ -260,39 +261,41 @@ export default {
 
       <p class="prose prose--muted plan-note">Окно в доску, а не вторая её копия: карточки живут заметками в волте. ${raw(age == null ? "Снимок не датирован." : age === 0 ? "Снимок собран сегодня." : `Снимку ${age} ${esc(M.plural(age, "день", "дня", "дней"))}.`)}</p>`;
 
-    const head = html`<h1>Проекты</h1>
-      <span class="head-sub num">${M.live(s).length} в работе · ${M.openDeeds(s).length} ${M.plural(M.openDeeds(s).length, "дело", "дела", "дел")}</span>`;
+    const said = `${M.live(s).length} в работе · ${M.openDeeds(s).length} ${M.plural(M.openDeeds(s).length, "дело", "дела", "дел")}`;
 
     /* Панель с порядком и подсказкой клавиш — десктопная деталь системы; на
        телефоне соседние приложения ставят одну строку с раскладкой, и три
        переключателя над списком там стоили бы четверти экрана. */
     if (!wide.matches) {
       return html`<main class="screen">
-        <header class="head head--dark"><div>${raw(head)}</div></header>
+        ${raw(pageHead({
+          title: "Проекты",
+          said,
+          actions: headBtn("Новый", `data-act="make" data-make="${making === "проект" ? "" : "проект"}"`),
+        }))}
+
+        <div class="workbar">${raw(cutSwitch())}</div>
+
         <div class="body">
-          <div class="groupbar groupbar--split">
-            ${raw(cutSwitch())}
-            <button class="btn btn--ghost btn--sm" type="button" data-act="make" data-make="${making === "проект" ? "" : "проект"}">Новый проект</button>
-          </div>
           ${raw(list)}
         </div>
       </main>`;
     }
 
     return html`<main class="screen">
-      <header class="head head--dark">
-        <div class="head-row">
-          <div>${raw(head)}</div>
-          <form class="search" data-act-submit="find" role="search">
+      ${raw(pageHead({
+        title: "Проекты",
+        said,
+        actions: headBtn("Новый проект", `data-act="make" data-make="${making === "проект" ? "" : "проект"}"`),
+        bar: `<form class="search search--head" data-act-submit="find" role="search">
             <label class="sr-only" for="proj-q">Поиск по проектам</label>
-            ${raw(icon("i-search", { size: 16, stroke: "#5f7468" }))}
-            <input class="search-field" id="proj-q" name="q" value="${query}" placeholder="Поиск" autocomplete="off">
+            ${icon("i-search", { size: 16, stroke: "#a9bcaf" })}
+            <input class="search-field" id="proj-q" name="q" value="${esc(query)}" placeholder="Поиск" autocomplete="off">
             <kbd>/</kbd>
-          </form>
-        </div>
-      </header>
+          </form>`,
+      }))}
 
-      <div class="toolbar">
+      <div class="workbar">
         ${raw(cutSwitch())}
         <span class="toolbar-sep" aria-hidden="true"></span>
         <div class="seg seg--sm" role="group" aria-label="Порядок">

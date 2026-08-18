@@ -138,6 +138,125 @@ export function best(places, limit = 5) {
     .slice(0, limit);
 }
 
+/* ---------- как ходится на самом деле ---------- */
+
+/**
+ * Стопка визитов лежит с первого дня и работает счётчиком.
+ *
+ * `visits` — это список дат, а спрашивали у него всегда только две вещи:
+ * сколько их и какая последняя. Между тем ровно в промежутках между ними лежит
+ * ответ на вопрос, ради которого ставят цикл: «хочу раз в месяц» — это
+ * пожелание, а раз в сорок дней — то, как есть.
+ */
+
+/** Три визита — два промежутка. По одному промежутку ритма не видно. */
+export const RHYTHM_FLOOR = 3;
+
+/** Ближе трети — не спор: пожелание и жизнь сошлись достаточно. */
+export const DRIFT_SHARE = 0.34;
+
+const median = (nums) => {
+  if (!nums.length) return null;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  return s.length % 2 ? s[mid] : Math.round((s[mid - 1] + s[mid]) / 2);
+};
+
+/**
+ * Как часто туда ходят на самом деле — медиана промежутков.
+ *
+ * Медиана, а не среднее: один месяц болезни не должен объявлять, что в
+ * любимую кофейню ходят раз в квартал.
+ */
+export function rhythm(place) {
+  const days = [...new Set(visitsOf(place))].sort((a, b) => a - b);
+  if (days.length < RHYTHM_FLOOR) return null;
+
+  const gaps = days.slice(1).map((d, i) => daysBetween(days[i], d)).filter((g) => g > 0);
+  return gaps.length ? median(gaps) : null;
+}
+
+/**
+ * Пожелание разошлось с жизнью.
+ *
+ * В Уборке такое значит «цикл врёт про пора». Здесь мягче и честнее: цикл тут
+ * не норматив, а желание, и разошедшееся желание — повод не поправить число, а
+ * заметить. Ходишь реже, чем хотел, — либо место не настолько твоё, либо не
+ * стоило обещать себе каждую неделю.
+ */
+export function drift(place) {
+  const real = rhythm(place);
+  if (real == null || !place.every) return null;
+
+  const off = real - place.every;
+  if (Math.abs(off) < Math.max(1, Math.round(place.every * DRIFT_SHARE))) return null;
+
+  return {
+    real,
+    every: place.every,
+    off,
+    said: off > 0
+      ? `хотел раз в ${place.every}, выходит раз в ${real}`
+      : `хотел раз в ${place.every}, а бываешь чаще — раз в ${real}`,
+    fix: off > 0
+      ? "либо место не настолько твоё, либо обещание было слишком частым"
+      : "ритм звал бы реже, чем ты и так ходишь",
+  };
+}
+
+/**
+ * Ритм был — и оборвался.
+ *
+ * Это не то же самое, что «был однажды и давно»: туда ходили подряд, а потом
+ * перестали, и разрыв больше двух своих же промежутков. Такое место либо
+ * закрылось, либо разонравилось, либо про него просто забыли — и последнее
+ * единственное, что стоит чинить.
+ */
+export function faded(place, now = today()) {
+  const real = rhythm(place);
+  const last = lastVisit(place);
+  if (real == null || !last) return null;
+
+  const since = daysBetween(last, now);
+  if (since < real * 2) return null;
+
+  return { real, since, times: visitsOf(place).length };
+}
+
+/**
+ * Записал и не дошёл — со сроком давности.
+ *
+ * «Хочу сходить» без даты — вечный список, в котором любая строка выглядит
+ * одинаково свежей. Возраст превращает список желаний в список решений:
+ * четыре месяца без движения — это уже не план, а тихий укор, и честнее
+ * вычеркнуть, чем носить.
+ *
+ * Тонкость, из-за которой здесь два слова вместо одного: `at` — это последняя
+ * правка, а не появление записи. Сказать по нему «записано полгода назад»
+ * значило бы соврать про любую строку, которую человек однажды открыл. Поэтому
+ * у новых записей есть `addedAt`, и только они говорят «записано»; у старых
+ * приложение честно говорит «без движения» — это ровно то, что оно знает.
+ */
+export const WISH_STALE = 120;
+
+export function staleWishes(state, now = today(), { after = WISH_STALE } = {}) {
+  return wanted(state)
+    .map((place) => {
+      const from = place.addedAt ?? place.at ?? null;
+      return {
+        place,
+        days: from == null ? null : daysBetween(from, now),
+        exact: place.addedAt != null,
+      };
+    })
+    .filter((r) => r.days != null && r.days >= after)
+    .sort((a, b) => b.days - a.days);
+}
+
+/** Как назвать этот возраст, чтобы не соврать. */
+export const wishAge = (row) =>
+  `${row.exact ? "записано" : "без движения"} ${row.days} ${plural(row.days, "день", "дня", "дней")}`;
+
 /* ---------- куда сходить ---------- */
 
 /**
