@@ -48,7 +48,28 @@
        screen and the desktop keeps it out of the sidebar. -->
   <div class="work">
     <div class="alert" data-alert role="alert" hidden></div>
-    <div class="stage" data-stage aria-live="polite"></div>
+    <div class="stage" data-stage aria-live="polite">
+      <!-- Первый кадр до того, как приедет и разберётся код.
+           Это единственное ожидание, которое есть всегда и у всех: на телефоне
+           по слабой связи модули едут заметно, и всё это время экран был просто
+           белым. Скелет держит тот же ритм, что настоящая шапка (132/60 на
+           компьютере, 112/60 на телефоне), поэтому в момент подмены ничего не
+           прыгает. Первая же отрисовка стирает его целиком. -->
+      <main class="screen">
+        <header class="pagehead" data-tone="dark">
+          <div class="pagehead-name"><span class="skel skel-title"></span></div>
+          <div class="pagehead-bar"><span class="skel skel-said"></span></div>
+        </header>
+        <div class="workbar"><span class="skel skel-tool"></span></div>
+        <div class="body">
+          <div class="skel skel-row"></div>
+          <div class="skel skel-row skel-row--wide"></div>
+          <div class="skel skel-row"></div>
+          <div class="skel skel-row skel-row--half"></div>
+          <div class="skel skel-row skel-row--wide"></div>
+        </div>
+      </main>
+    </div>
   </div>
 </div>
 

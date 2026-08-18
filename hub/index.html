@@ -16,7 +16,22 @@
 </head>
 <body>
 
-<main id="root"></main>
+<main id="root">
+  <!-- Тот же первый кадр, что у приложений: пока едет код, видно форму пульта,
+       а не белый лист. Первая отрисовка стирает это целиком. -->
+  <div class="hub">
+    <header class="hub-head">
+      <span class="skel skel-title"></span>
+      <span class="skel skel-said"></span>
+    </header>
+    <div class="hub-apps">
+      <span class="skel skel-tile"></span>
+      <span class="skel skel-tile"></span>
+      <span class="skel skel-tile"></span>
+      <span class="skel skel-tile"></span>
+    </div>
+  </div>
+</main>
 
 <script type="module" src="./app.js"></script>
 </body>

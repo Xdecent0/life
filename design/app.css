@@ -988,6 +988,22 @@ a {
   margin: 16px var(--pad) 4px;
 }
 
+/* Формы первого кадра: заголовок, строка смысла, инструмент, плитка. Размеры
+   те же, что у настоящих элементов, — подмена не должна ничего двигать. */
+
+.skel-title { display: block; width: 42%; height: 24px; }
+.skel-said  { display: block; width: 30%; height: 14px; }
+.skel-tool  { display: block; width: 46%; height: 14px; }
+
+.skel-tile {
+  display: block;
+  height: 152px;
+  border-radius: 16px;
+}
+
+.pagehead .skel { background: rgba(244, 241, 230, 0.16); }
+.pagehead[data-tone="light"] .skel { background: rgba(28, 51, 39, 0.1); }
+
 /* ---------- строка с выводом ---------- */
 
 /* Утверждение и объяснение под ним: «Творог · 2 раза · 144 ₴», а следующей
