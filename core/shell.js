@@ -117,6 +117,16 @@ export function render() {
   // until someone is standing in a queue — so the slow ones say so in the journal.
   const stop = log.time("отрисовка", current.name, { warnAfter: 60 });
 
+  /* Смена экрана — это смена места, а не мигание. Один кадр перехода вместо
+     мгновенной подмены: содержимое всплывает на два пикселя и проявляется, и
+     этого хватает, чтобы глаз понял, что произошло. Повторная отрисовка того
+     же экрана (отметил галочку) не анимируется вовсе — там ничего не менялось
+     местами, и движение было бы враньём.
+
+     Тем, кто просил меньше движения, не двигаем ничего: правило одно, в CSS. */
+  if (!sameScreen) stage.dataset.enter = "1";
+  else delete stage.dataset.enter;
+
   try {
     stage.innerHTML = screen.render(state, current.arg);
   } catch (err) {
@@ -260,6 +270,26 @@ export function boot(opts) {
     screens[current.name]?.keys?.(e, get());
   });
 
+  /**
+   * Кнопка, за которой стоит ожидание, говорит об этом сама.
+   *
+   * Ровно там, где ожидание настоящее: обработчик вернул промис — значит, он
+   * пошёл в сеть или в камеру, и до ответа кнопку жать бессмысленно. Синхронные
+   * действия (отметить, переключить фильтр) не мигают ничем, потому что там
+   * ждать нечего, а мигание ради «отзывчивости» — это имитация работы.
+   *
+   * Одно место на все приложения: пятьдесят обработчиков не должны помнить про
+   * это каждый сам.
+   */
+  function busyWhile(el, result) {
+    if (!el || !result || typeof result.then !== "function") return result;
+
+    el.dataset.busy = "1";
+    const free = () => delete el.dataset.busy;
+    result.then(free, free);
+    return result;
+  }
+
   /* One delegated listener for every screen action. */
   document.addEventListener("click", (e) => {
     const el = e.target.closest("[data-act]");
@@ -269,7 +299,7 @@ export function boot(opts) {
     if (!handler) return;
 
     e.preventDefault();
-    handler(el, get());
+    busyWhile(el, handler(el, get()));
   });
 
   /* Editing in place: a second click on something already selected opens it, the
@@ -316,7 +346,7 @@ export function boot(opts) {
     if (!handler) return;
 
     e.preventDefault();
-    handler(form, get());
+    busyWhile(form.querySelector('[type="submit"]'), handler(form, get()));
   });
 
   render();

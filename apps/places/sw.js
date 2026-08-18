@@ -35,6 +35,7 @@ life.serve({
     "../../core/health.js",
     "../../core/screens/card.js",
     "../../core/screens/head.js",
+    "../../core/screens/skeleton.js",
     "../../core/screens/settings.js",
   ],
 });

@@ -65,7 +65,9 @@ export default {
             ${raw([7, 30, 90, 365].map((n) => `<button class="chip chip--sm" type="button" data-act="every" data-every="${n}" aria-pressed="${place.every === n}">${esc(M.everyLabel({ every: n }))}</button>`).join(""))}
           </div>
           <p class="prose prose--muted">Только тем, куда правда хочется возвращаться. Музей, в котором был однажды, не просрочен.</p>
-        </section>`;
+        </section>
+
+        ${raw(rhythmPane(place, now))}`;
 
     const foot = html`<div class="foot foot--wrap">
       <button class="btn btn--grow" type="button" data-act="went">Был сегодня</button>
@@ -100,6 +102,15 @@ export default {
     rate(el) {
       const rating = Number(el.dataset.rating) || null;
       patch((p) => { p.rating = p.rating === rating ? null : rating; });
+    },
+
+    /** Поставить цикл по факту — предложение, а не решение за человека. */
+    fitEvery(_el, state) {
+      const place = find(state, currentId());
+      const d = place ? M.drift(place) : null;
+      if (!d) return;
+      patch((p) => { p.every = d.real; });
+      toast(`${place.name} — раз в ${d.real} ${M.plural(d.real, "день", "дня", "дней")}`);
     },
 
     every(el) {
@@ -195,6 +206,46 @@ function sideOf(state, place, now, cls) {
       <div class="head-row"><div class="label">Такие же</div><span class="tdim num">${same.length}</span></div>
       ${list(same)}
     </div>` : "")}`;
+}
+
+/**
+ * Как ходится на самом деле.
+ *
+ * Стопка визитов лежит с первого дня и работала счётчиком: сколько раз и когда
+ * в последний. В промежутках между ними — ответ на вопрос, ради которого ставят
+ * цикл: «хочу раз в месяц» это пожелание, а раз в сорок дней — то, как есть.
+ *
+ * Здесь мягче, чем в Уборке: цикл тут не норматив, а желание, и разошедшееся
+ * желание — повод заметить, а не поправить число. Кнопка предлагает, не делает.
+ */
+function rhythmPane(place, now) {
+  const real = M.rhythm(place);
+  const d = M.drift(place);
+  const gone = M.faded(place, now);
+  const visits = M.visitsOf(place).length;
+
+  if (!real && !gone) {
+    return visits
+      ? html`<section class="pane">
+          <div class="label">Как ходится</div>
+          <p class="prose prose--muted">Походов пока ${visits} из ${M.RHYTHM_FLOOR}. Ритм посчитается, когда их станет достаточно: по одному промежутку его не видно.</p>
+        </section>`
+      : "";
+  }
+
+  return html`<section class="pane">
+    <div class="head-row">
+      <div class="label">Как ходится</div>
+      ${raw(real ? `<span class="tdim num">раз в ${real} ${esc(M.plural(real, "день", "дня", "дней"))}</span>` : "")}
+    </div>
+
+    ${raw(d ? `<p class="prose">${esc(d.said)}.<span class="dim"> ${esc(d.fix)}</span></p>
+      <button class="btn btn--ghost btn--sm" type="button" data-act="fitEvery">Хотеть раз в ${d.real}</button>` : "")}
+
+    ${raw(!d && real ? `<p class="prose prose--muted">Ходишь примерно так, как и собирался.</p>` : "")}
+
+    ${raw(gone ? `<p class="prose">Последний раз ${gone.since} ${esc(M.plural(gone.since, "день", "дня", "дней"))} назад — при своих ${gone.real}.<span class="dim"> Либо закрылось, либо разонравилось, либо просто забылось.</span></p>` : "")}
+  </section>`;
 }
 
 function patch(change) {

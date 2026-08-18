@@ -909,6 +909,85 @@ a {
   border-bottom: 0;
 }
 
+/* ---------- движение ---------- */
+
+/* Три правила на всё приложение, и все три — про понимание, а не про красоту:
+   экран въезжает при смене места, скелет показывается только там, где данных
+   ещё нет, кнопка занята — пока идёт работа. Больше движения здесь нет. */
+
+@keyframes life-enter {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: none; }
+}
+
+[data-stage][data-enter="1"] > .screen > .body,
+[data-stage][data-enter="1"] > .screen > .split {
+  animation: life-enter 160ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@keyframes life-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* Скелет — обещание, что данные будут. Ставится только там, где приложение
+   действительно чего-то ждёт: круг синка, снимок доски, чтение справочников.
+   Над готовыми данными скелета не бывает — это была бы имитация работы. */
+
+.skel {
+  border-radius: 8px;
+  background: rgba(28, 51, 39, 0.09);
+  animation: life-pulse 1.4s ease-in-out infinite;
+}
+
+.skel-row {
+  height: 16px;
+  margin: 14px var(--pad);
+}
+
+.skel-row--wide { max-width: 62%; }
+.skel-row--half { max-width: 40%; }
+
+.skel-card {
+  height: 96px;
+  margin: 14px var(--pad);
+  border-radius: var(--r-card);
+}
+
+/* Кнопка, которая сейчас работает: точка-индикатор вместо подмены подписи,
+   чтобы ширина не прыгала и место действия не уезжало из-под пальца. */
+
+.btn[data-busy="1"],
+.btn--head[data-busy="1"] {
+  position: relative;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.btn[data-busy="1"]::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-left: 8px;
+  display: inline-block;
+  animation: life-pulse 0.9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-stage][data-enter="1"] > .screen > .body,
+  [data-stage][data-enter="1"] > .screen > .split,
+  .skel,
+  .btn[data-busy="1"]::after {
+    animation: none;
+  }
+}
+
+.skel-said {
+  margin: 16px var(--pad) 4px;
+}
+
 /* ---------- строка с выводом ---------- */
 
 /* Утверждение и объяснение под ним: «Творог · 2 раза · 144 ₴», а следующей

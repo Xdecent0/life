@@ -3,7 +3,7 @@
 
 import * as gh from "./github.js";
 import { app } from "./app.js";
-import { get, replace, drainQueue, flush } from "./state.js";
+import { get, replace, drainQueue, flush, touch } from "./state.js";
 import * as log from "./log.js";
 
 /**
@@ -398,6 +398,11 @@ export async function sync({ onStep } = {}) {
     throw new Error("в приложении демо-данные — очисти их, иначе выдуманный склад уедет в репозиторий");
   }
 
+  /* Экран должен узнать, что круг начался, а не только что он кончился: пока
+     снимка нет, доска показывает форму того, что едет, и без этого сигнала она
+     переключилась бы на неё только по случайной перерисовке. */
+  const wake = () => touch("синк");
+
   running = (async () => {
     // A round trip can take fifteen seconds; anything still only in memory when
     // it starts should be on disk before the tab gets a chance to die.
@@ -422,6 +427,8 @@ export async function sync({ onStep } = {}) {
     return report;
   })();
 
+  wake();
+
   try {
     return await running;
   } catch (err) {
@@ -429,6 +436,9 @@ export async function sync({ onStep } = {}) {
     throw err;
   } finally {
     running = null;
+    // И о конце тоже: экран со скелетом должен смениться содержимым сам,
+    // даже если круг не принёс ни одной правки и состояние не менялось.
+    wake();
   }
 }
 

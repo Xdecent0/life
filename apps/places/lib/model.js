@@ -282,8 +282,14 @@ export function toGo(state, now = today(), { stale = 90 } = {}) {
   const missed = rows.filter((p) =>
     !calls.includes(p) && (p.rating ?? 0) >= 4 && (since(p) ?? 0) >= stale);
 
+  /* Ритм оборвался — это не то же самое, что «был однажды и давно»: туда ходили
+     подряд, а потом перестали. Такое место либо закрылось, либо разонравилось,
+     либо про него забыли — и только последнее стоит чинить. */
+  const stopped = rows.filter((p) => !calls.includes(p) && !missed.includes(p) && faded(p, now));
+
   return [
     { key: "calls", name: "Зовёт обратно", note: "по ритму, который ты сам поставил", rows: calls },
+    { key: "stopped", name: "Перестал ходить", note: "ходил подряд, а потом перестал", rows: stopped },
     { key: "never", name: "Хотел и не дошёл", note: "записано, но ни разу", rows: never },
     { key: "missed", name: "Любимое, но давно", note: `четыре звезды и больше ${stale} дней тишины`, rows: missed },
   ].filter((g) => g.rows.length);

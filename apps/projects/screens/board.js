@@ -5,6 +5,8 @@
 // Меняется только то, чем это нарисовано.
 
 import { html, raw, icon, esc, toast, wide } from "../../../core/dom.js";
+import { skelScreen } from "../../../core/screens/skeleton.js";
+import { syncing } from "../../../core/sync.js";
 import { pageHead, headBtn, headLink } from "../../../core/screens/head.js";
 import { commit, touch } from "../../../core/state.js";
 import { cursor, hint } from "../../../core/keys.js";
@@ -207,6 +209,18 @@ function comingPane(state) {
 
 function emptyScreen(state) {
   const known = Boolean(M.boardOf(state));
+
+  /* Единственный экран, у которого «пусто» и «ещё едет» — разные состояния, и
+     раньше он оба показывал одинаково. Пока круг синка идёт, здесь стоит форма
+     того, что приедет: не для красоты, а чтобы человек не решил, что снимка
+     нет вовсе, и не пошёл чинить работающее. */
+  if (!known && syncing()) {
+    return html`<main class="screen">
+      ${raw(pageHead({ title: "Проекты", said: "снимок едет" }))}
+      <div class="workbar"><span class="toolbar-hint">Читаю общий репозиторий</span></div>
+      ${raw(skelScreen("Снимок доски ещё в пути — обычно это пара секунд.", { rows: 6 }))}
+    </main>`;
+  }
 
   return html`<main class="screen">
     ${raw(pageHead({ title: `Проекты`, said: `${known ? "пусто" : "снимок не приезжал"}` }))}

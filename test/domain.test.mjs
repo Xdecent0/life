@@ -2036,3 +2036,55 @@ test("вещи: годы дробью говорятся по-русски", () 
   ];
   assert.match(TH.served(round[0], round, kinds, now).said, /2 года/);
 });
+
+/* ------------------------------------------------------------- ритм мест */
+
+test("места: ритм по визитам, и оборвавшийся ритм — отдельный ответ", () => {
+  const now = Date.UTC(2026, 7, 15);
+  const at = (n) => now - n * DAY;
+
+  // Два визита — один промежуток, ритма ещё нет.
+  assert.equal(PL.rhythm({ visits: [at(14), at(7)] }), null);
+  assert.equal(PL.rhythm({ visits: [at(21), at(14), at(7)] }), 7);
+
+  // Один и тот же день дважды не создаёт промежуток в ноль.
+  assert.equal(PL.rhythm({ visits: [at(21), at(14), at(14), at(7)] }), 7);
+
+  // Хотел раз в неделю, выходит раз в месяц — это про желание, а не про норматив.
+  const d = PL.drift({ every: 7, visits: [at(90), at(60), at(30), at(0)] });
+  assert.equal(d.real, 30);
+  assert.match(d.said, /хотел раз в 7/);
+
+  // Разница в пределах трети — не спор.
+  assert.equal(PL.drift({ every: 7, visits: [at(24), at(16), at(8), at(0)] }), null);
+
+  // Ритм был и оборвался: больше двух своих же промежутков тишины.
+  const gone = PL.faded({ visits: [at(300), at(280), at(260)] }, now);
+  assert.equal(gone.real, 20);
+  assert.equal(gone.since, 260);
+  // Пока не прошло двух промежутков — молчим.
+  assert.equal(PL.faded({ visits: [at(40), at(20), at(1)] }, now), null);
+});
+
+test("места: «хочу» со сроком давности не врёт про дату записи", () => {
+  const now = Date.UTC(2026, 7, 15);
+  const at = (n) => now - n * DAY;
+
+  const state = { places: [
+    { id: "a", name: "Музей", visits: [], addedAt: at(200), at: at(3) },
+    { id: "b", name: "Бар", visits: [], at: at(150) },
+    { id: "c", name: "Кафе", visits: [], addedAt: at(10), at: at(10) },
+    { id: "d", name: "Парк", visits: [at(5)], addedAt: at(400), at: at(5) },
+  ] };
+
+  const rows = PL.staleWishes(state, now);
+  assert.deepEqual(rows.map((r) => r.place.имя ?? r.place.name), ["Музей", "Бар"]);
+
+  // У записи с addedAt возраст настоящий и слово честное.
+  assert.equal(rows[0].exact, true);
+  assert.match(PL.wishAge(rows[0]), /^записано 200 дней/);
+
+  // Без addedAt известно только «не трогали столько-то» — так и сказано.
+  assert.equal(rows[1].exact, false);
+  assert.match(PL.wishAge(rows[1]), /^без движения 150 дней/);
+});
