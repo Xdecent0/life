@@ -288,3 +288,240 @@
       background: var(--surface);
     }
 }
+
+
+/* ---------- приборная панель ---------- */
+
+/* Пульт перестал быть меню. Плитки отвечали на «куда пойти», а открывают его,
+   чтобы узнать, что происходит: время, дом, шкалы, приложения. Вход в
+   приложение стал строкой — он нужен после ответа, а не вместо него. */
+
+.hub-top {
+  padding: 40px 0 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hub-top h1 {
+  margin: 0;
+  font-size: clamp(28px, 3.6vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.hub-when {
+  font-size: var(--t-body);
+  color: var(--ink-4);
+}
+
+.dash {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .dash { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
+}
+
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--raised);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.panel-h {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 10px;
+  /* На телефоне подпись справа длиннее половины строки, и в одну она не лезет.
+     Переносится целиком, а не обрезается: это счётчик, а не украшение. */
+  flex-wrap: wrap;
+}
+
+.panel-h .dim { font-size: var(--t-meta); }
+
+.panel-t {
+  font-size: var(--t-label);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-5);
+}
+
+/* ---------- ось дня ---------- */
+
+.hours { display: flex; flex-direction: column; }
+
+.hour {
+  display: grid;
+  grid-template-columns: 54px 9px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.hour:last-child { border-bottom: 0; }
+
+.hour[data-past="1"] { opacity: 0.55; }
+
+.hour-at {
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+}
+
+.hour-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line-firm);
+}
+
+.hour[data-tone="hot"] .hour-dot { background: var(--alarm); }
+.hour[data-tone="warm"] .hour-dot { background: #b5871a; }
+
+.hour-main { display: flex; flex-direction: column; min-width: 0; }
+.hour-said { font-size: var(--t-body); }
+.hour-note { font-size: var(--t-meta); color: var(--ink-4); }
+.hour-app { font-size: var(--t-meta); color: var(--ink-5); white-space: nowrap; }
+
+/* ---------- план дома ---------- */
+
+/* Сетка строится по тому же справочнику комнат, что рисует карту в Уборке:
+   ряд, колонка и ширина объявлены в волте, а не подобраны здесь. */
+
+.plan {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr));
+  grid-auto-rows: minmax(64px, auto);
+  gap: 6px;
+}
+
+.plan-room {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  background: var(--surface);
+}
+
+.plan-room[data-tone="hot"] { background: var(--alarm-bg); border-color: rgba(193, 72, 31, 0.3); }
+.plan-room[data-tone="warm"] { background: rgba(181, 135, 26, 0.14); border-color: rgba(181, 135, 26, 0.3); }
+.plan-room[data-tone="none"] { background: none; border-style: dashed; }
+
+.plan-name {
+  font-size: var(--t-body);
+  font-weight: 500;
+  /* «рабочая поверхность» в колонке шириной с палец не переносится сама. */
+  overflow-wrap: anywhere;
+}
+.plan-said { font-size: var(--t-meta); color: var(--ink-4); overflow-wrap: anywhere; }
+.plan-room[data-tone="hot"] .plan-said { color: var(--alarm-ink); }
+
+.plan-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+}
+
+.plan-legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+.plan-legend span::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  background: var(--line-firm);
+}
+
+.plan-legend span[data-tone="hot"]::before { background: var(--alarm); }
+.plan-legend span[data-tone="warm"]::before { background: #b5871a; }
+.plan-legend span[data-tone="ok"]::before { background: #3f7d55; }
+
+/* ---------- шкалы ---------- */
+
+.gauges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+.gauge { display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; min-width: 0; }
+.gauge svg { width: 100%; max-width: 96px; height: auto; }
+.gauge-bed { stroke: rgba(28, 51, 39, 0.12); }
+.gauge-arc { stroke: #3f7d55; }
+.gauge[data-tone="warm"] .gauge-arc { stroke: #b5871a; }
+.gauge[data-tone="hot"] .gauge-arc { stroke: var(--alarm); }
+.gauge-v { font-size: var(--t-lead); font-weight: 600; letter-spacing: -0.02em; }
+.gauge-k { font-size: var(--t-meta); color: var(--ink-4); }
+.gauge-said { font-size: var(--t-label); color: var(--ink-5); overflow-wrap: anywhere; }
+
+/* ---------- приложения строкой ---------- */
+
+.applist { display: flex; flex-direction: column; gap: 6px; }
+
+.approw {
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.approw-dot { width: 8px; height: 8px; border-radius: 50%; background: #3f7d55; }
+.approw[data-tone="warm"] .approw-dot { background: #b5871a; }
+.approw[data-tone="hot"] .approw-dot { background: var(--alarm); }
+.approw[data-tone="none"] .approw-dot { background: var(--line-firm); }
+
+.approw-main { display: flex; flex-direction: column; min-width: 0; }
+.approw-nm { font-size: var(--t-body); }
+.approw-said { font-size: var(--t-meta); color: var(--ink-4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.approw-v { font-size: var(--t-item); min-width: 20px; text-align: right; }
+
+.spark { display: flex; align-items: flex-end; gap: 2px; height: 18px; flex: none; }
+.spark i { width: 3px; border-radius: 1px; background: var(--line-firm); display: block; }
+.spark i[data-on="1"] { background: #3f7d55; }
+
+/* ---------- полгода и неделя ---------- */
+
+.heat { display: flex; flex-direction: column; gap: 4px; }
+.heat-row { display: grid; grid-template-columns: 54px minmax(0, 1fr); gap: 8px; align-items: center; }
+.heat-nm { font-size: var(--t-label); color: var(--ink-5); }
+.heat-cells { display: flex; gap: 2px; }
+.heat-cells i { flex: 1; height: 13px; border-radius: 2px; background: #3f7d55; display: block; }
+
+.week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+
+.week-day {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 7px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.week-day[data-now="1"] { border-color: var(--ink); }
+.week-day[data-busy="0"] .week-c { color: var(--ink-5); }
+.week-d { font-size: var(--t-label); color: var(--ink-5); }
+.week-c { font-size: var(--t-item); }

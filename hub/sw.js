@@ -12,6 +12,8 @@ life.serve({
     "./",
     "./index.html",
     "./app.js",
+    "./panels.js",
+    "./lib/dash.js",
     "./manifest.webmanifest",
     "../design/app.css",
     "../design/hub.css",

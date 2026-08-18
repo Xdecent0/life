@@ -29,6 +29,7 @@ import * as QR from "../core/qr.js";
 import * as log from "../core/log.js";
 import { encodePairing } from "../core/pair.js";
 import * as INSTALL from "../core/install.js";
+import { states, dayPane, planPane, gaugePane, appsPane, heatPane, weekPane } from "./panels.js";
 
 import KITCHEN from "../apps/kitchen/manifest.js";
 import THINGS from "../apps/things/manifest.js";
@@ -373,24 +374,38 @@ function render() {
   const focused = document.activeElement?.name === "q";
   const caret = focused ? document.activeElement.selectionStart : null;
 
+  const searching = query.trim().length >= 2;
+  const all = states();
+  const now = today();
+  const when = new Date();
+
   root.innerHTML = html`<div class="hub">
-    <header class="hub-head">
+    <header class="hub-top">
       <h1>Жизнь</h1>
-      <p>Пять приложений про быт и работу. Ключ доступа, телефон и общий круг синка — здесь, один раз на все.</p>
+      <span class="hub-when num">${when.toLocaleDateString("ru", { weekday: "long", day: "numeric", month: "long" })} · ${fmtTime(when.getTime())}</span>
     </header>
 
     ${raw(searchPane())}
-    ${raw(query.trim().length >= 2 ? "" : quietPane())}
-    ${raw(query.trim().length >= 2 ? "" : alertPane())}
-    ${raw(query.trim().length >= 2 ? "" : todayPane())}
+
+    ${raw(searching ? "" : html`<div class="dash">
+      <div class="dash-col">
+        ${raw(dayPane(all, now))}
+        ${raw(planPane(all, now))}
+        ${raw(weekPane(all, now))}
+      </div>
+      <div class="dash-col">
+        ${raw(gaugePane(all, now))}
+        ${raw(appsPane(now))}
+        ${raw(quietPane())}
+        ${raw(alertPane())}
+        ${raw(heatPane(all))}
+      </div>
+    </div>`)}
+
+    ${raw(searching ? "" : todayPane())}
 
     <section class="hub-section">
-      <span class="hub-label">Приложения</span>
-      <div class="hub-apps">${raw(APPS.map(tile).join(""))}</div>
-    </section>
-
-    <section class="hub-section">
-      <span class="hub-label">Общее</span>
+      <span class="hub-label">Щиток</span>
       <div class="hub-panes">
         ${raw(connectPane())}
         ${raw(syncPane())}

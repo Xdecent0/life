@@ -2088,3 +2088,84 @@ test("места: «хочу» со сроком давности не врёт 
   assert.equal(rows[1].exact, false);
   assert.match(PL.wishAge(rows[1]), /^без движения 150 дней/);
 });
+
+/* ------------------------------------------------------------- пульт */
+
+test("пульт: шкалы считаются по тому, про что известно, и молчат про остальное", async () => {
+  const D = await import("../hub/lib/dash.js");
+  const now = Date.UTC(2026, 7, 18);
+  const d = (n) => now - n * DAY;
+
+  const all = {
+    kitchen: { stock: [
+      { id: "1", product: "Молоко", boughtAt: d(3), shelfDays: 4 },
+      { id: "2", product: "Гречка", boughtAt: d(10), shelfDays: 300 },
+      { id: "3", product: "Съеденное", empty: true, boughtAt: d(9), shelfDays: 5 },
+    ] },
+    clean: { spots: [
+      { id: "s1", name: "пол", room: "kitchen", every: 4, lastDone: d(13) },
+      { id: "s2", name: "плита", room: "kitchen", every: 6, lastDone: d(1) },
+      // Ни разу не убирали — в знаменатель не идёт: неизвестно это не грязно.
+      { id: "s3", name: "окно", room: "room", every: 90, lastDone: null },
+    ] },
+    projects: { board: { проекты: [] } },
+  };
+
+  const g = D.gauges(all, now);
+  const by = Object.fromEntries(g.map((x) => [x.key, x]));
+
+  // Пустая позиция не считается ни в числителе, ни в знаменателе.
+  assert.equal(by["склад"].value, 50);
+  // Одна из двух известных просрочена.
+  assert.equal(by["чистота"].value, 50);
+  // Снимка доски нет — не ноль, а честное «нечем мерить».
+  assert.equal(by["проекты"].value, null);
+  assert.match(by["проекты"].said, /снимок/);
+});
+
+test("пульт: комната светится состоянием обеих половин сразу", async () => {
+  const D = await import("../hub/lib/dash.js");
+  const now = Date.UTC(2026, 7, 18);
+  const d = (n) => now - n * DAY;
+
+  const all = {
+    clean: { spots: [{ id: "s1", name: "пол", room: "kitchen", every: 4, lastDone: d(13) }] },
+    things: { things: [{ id: "t1", name: "Чайник", place: "кухня", warrantyUntil: d(-12) }] },
+  };
+
+  const room = D.roomState({ id: "kitchen", name: "кухня", row: 1, col: 1, w: 2 }, all, now);
+  // Просрочка больше своего же цикла — это уже не «скоро».
+  assert.equal(room.tone, "hot");
+  assert.match(room.said, /пол/);
+  assert.match(room.said, /гарантия/);
+
+  // Комната, про которую ничего не описано, не притворяется чистой.
+  const empty = D.roomState({ id: "hall", name: "коридор" }, all, now);
+  assert.equal(empty.tone, "none");
+  assert.match(empty.said, /ничего не описано/);
+});
+
+test("пульт: полоска активности считается по меткам самих записей", async () => {
+  const D = await import("../hub/lib/dash.js");
+  const now = Date.UTC(2026, 7, 18);
+  const week = 7 * DAY;
+
+  const items = [
+    { at: now - 2 * DAY },
+    { at: now - 3 * DAY },
+    { at: now - week - DAY },
+    { at: now - 5 * week },
+    { at: null },
+    { at: now - 40 * week },
+  ];
+
+  const weeks = D.activityWeeks(items, { weeks: 6, now });
+  assert.equal(weeks.length, 6);
+  // Последняя неделя — две записи, предыдущая — одна.
+  assert.equal(weeks[5], 2);
+  assert.equal(weeks[4], 1);
+  // Неделя без правок честно нулевая, а не пропущенная.
+  assert.equal(weeks[3], 0);
+  // Записи без метки и старше окна не считаются вовсе.
+  assert.equal(weeks.reduce((a, b) => a + b, 0), 4);
+});
