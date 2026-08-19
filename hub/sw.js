@@ -13,6 +13,7 @@ life.serve({
     "./index.html",
     "./app.js",
     "./panels.js",
+    "./keys.js",
     "./lib/dash.js",
     "./manifest.webmanifest",
     "../design/app.css",

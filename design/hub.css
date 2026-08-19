@@ -45,10 +45,9 @@
 }
 
 .hub-label {
-  font-size: var(--t-label);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-4);
+  font-size: var(--t-meta);
+  font-weight: 500;
+  color: var(--ink-3);
 }
 
 .hub-apps {
@@ -368,11 +367,14 @@
 
 .panel-h .dim { font-size: var(--t-meta); }
 
+/* Без капса. Мелкая метка вразрядку прописными — примета сгенерированного
+   интерфейса, и читается она хуже обычной строки того же размера. */
+
 .panel-t {
-  font-size: var(--t-label);
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--ink-5);
+  font-size: var(--t-meta);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--ink-3);
 }
 
 /* ---------- ось дня ---------- */
@@ -564,3 +566,77 @@ a.hour-main { color: inherit; text-decoration: none; }
 /* Приложение без ритма правок не получает полоску из одной палки: пустое место
    честнее, чем график, на котором нечего читать. */
 .spark--none { width: 33px; }
+
+/* ---------- пульт как рабочее место ---------- */
+
+/* На компьютере пульт должен помещаться целиком: экран, за которым скроллят,
+   чтобы увидеть состояние дома, состоянием дома не является. Колонки
+   прокручиваются каждая сама, страница — нет. */
+
+@media (min-width: 1200px) {
+  .hub {
+    height: 100dvh;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 14px;
+    padding-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .hub .dash { min-height: 0; }
+  .hub .dash-col { overflow-y: auto; max-height: 100%; padding-right: 4px; }
+
+  .panel { padding: 12px 14px; gap: 9px; }
+  .hour { padding: 7px 0; }
+  .panel--day .hour { padding: 9px 0; }
+}
+
+/* Строка под курсором. Клавиатура без видимого места — это ходьба вслепую. */
+.hour[data-cursor="1"] {
+  background: var(--surface);
+  box-shadow: inset 2px 0 0 var(--ink);
+  border-radius: 6px;
+}
+
+.hub-keys {
+  margin: 6px 0 0;
+  max-width: 74ch;
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+}
+
+.hub-keys kbd {
+  font: inherit;
+  color: var(--ink-2);
+  border: 1px solid var(--line-firm);
+  border-radius: 5px;
+  padding: 1px 5px;
+  margin: 0 1px;
+}
+
+/* Щиток открывают раз в месяц — он свёрнут и не занимает этаж под пультом. */
+.switchboard > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+
+.switchboard > summary::-webkit-details-marker { display: none; }
+
+.switchboard > summary::after {
+  content: "развернуть";
+  font-size: var(--t-meta);
+  color: var(--ink-4);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.switchboard[open] > summary::after { content: "свернуть"; }
+.switchboard[open] .hub-panes { margin-top: 10px; }
+
+/* Объяснения внутри панелей — строка на 60 знаков, а не на всю ширину колонки:
+   панель шириной в треть экрана всё равно читается по одной строке за раз. */
+.panel .prose { max-width: 58ch; }

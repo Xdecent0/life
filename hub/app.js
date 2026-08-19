@@ -30,6 +30,7 @@ import * as log from "../core/log.js";
 import { encodePairing } from "../core/pair.js";
 import * as INSTALL from "../core/install.js";
 import { states, dayPane, planPane, gaugePane, appsPane, heatPane, weekPane, missingPane } from "./panels.js";
+import * as KEYS from "./keys.js";
 
 import KITCHEN from "../apps/kitchen/manifest.js";
 import THINGS from "../apps/things/manifest.js";
@@ -150,6 +151,11 @@ function searchPane() {
              placeholder="найти во всех приложениях — «дрель», «молоко», «кофейня»"
              autocomplete="off" spellcheck="false">
     </label>
+
+    <p class="hub-keys">
+      <kbd>/</kbd> искать · <kbd>↑↓</kbd> ходить по «Сегодня» · <kbd>Space</kbd> отметить ·
+      <kbd>Enter</kbd> открыть · <kbd>1</kbd>–<kbd>5</kbd> приложение · <kbd>s</kbd> синк
+    </p>
 
     ${raw(!asked ? "" : found.length
       ? `<div class="feed">${found.slice(0, 12).map((row, i) => `<div class="feed-line">
@@ -397,8 +403,8 @@ function render() {
 
     ${raw(searching ? "" : dash(all, now))}
 
-    <section class="hub-section">
-      <span class="hub-label">Щиток</span>
+    <details class="hub-section switchboard">
+      <summary class="hub-label">Щиток · ключ, синк, бэкап, журнал, телефон</summary>
       <div class="hub-panes">
         ${raw(connectPane())}
         ${raw(syncPane())}
@@ -407,8 +413,11 @@ function render() {
         ${raw(logPane())}
         ${raw(installPane())}
       </div>
-    </section>
+    </details>
   </div>`;
+
+  KEYS.clamp(root.querySelectorAll(".hour").length);
+  KEYS.paint(root);
 
   // Re-rendering on every keystroke would otherwise take the cursor with it.
   if (focused) {
@@ -554,6 +563,32 @@ const ACTIONS = {
 };
 
 /* ---------- события ---------- */
+
+/* Клавиатура пульта: правила в keys.js, а что именно делать — знает этот экран.
+   Строки «Сегодня» и лента срочного — одно и то же, поэтому и отметка тут та
+   же, что по кнопке: один способ на два входа. */
+KEYS.bind({
+  rows: () => root.querySelectorAll(".hour").length,
+  paint: () => KEYS.paint(root),
+  focusSearch() {
+    const field = root.querySelector('input[name="q"]');
+    field?.focus();
+    field?.select();
+  },
+  mark(i) {
+    const btn = root.querySelectorAll(".hour")[i]?.querySelector('[data-act="mark"]');
+    btn?.click();
+  },
+  open(i) {
+    const link = root.querySelectorAll(".hour")[i]?.querySelector("a.hour-main");
+    if (link) location.href = link.getAttribute("href");
+  },
+  sync() { root.querySelector('[data-act="syncAll"]')?.click(); },
+  go(i) {
+    const entry = APPS.filter((a) => a.ready)[i];
+    if (entry?.href) location.href = entry.href;
+  },
+});
 
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
