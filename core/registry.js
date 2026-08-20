@@ -4,14 +4,14 @@
 // localStorage for all of them. That is what makes a hub cheap: it reads each
 // app's own saved state where the app left it, so a tile can say "12 позиций,
 // 3 правки не отправлено" without the app being open — and so one feed can say
-// what is urgent across all four without opening any of them.
+// what is urgent across all of them without opening any.
 //
 // The arithmetic here is core/time.js, the same one the apps run on. What each
 // app contributes is the vocabulary: which field holds a date, and what the
 // answer is called when it comes due.
 //
 // Adding an app is a row here plus a folder. There is no plugin protocol,
-// because four apps do not need one.
+// because a handful of apps do not need one.
 
 import { DAY, today, daysBetween, freshness, expiryLabel } from "./time.js";
 import { reach } from "./reach.js";

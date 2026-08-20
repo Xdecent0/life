@@ -51,19 +51,22 @@ core/log.js        кольцевой журнал
 | [Вещи](apps/things/) | техника, гарантии, где что лежит | манифест + 3 экрана |
 | [Уборка](apps/clean/) | карта дома, что убрано и до чего пора | манифест + 4 экрана |
 | [Места](apps/places/) | куда хочу и где был | манифест + 3 экрана |
+| [Проекты](apps/projects/) | доска проектов волта на телефоне | манифест + экраны |
 
-Все четыре считают «когда снова» одним и тем же кодом: срок годности, гарантия,
-цикл уборки и «давно не был» — это одна арифметика в разных словах.
+Все пятеро считают «когда снова» одним и тем же кодом: срок годности, гарантия,
+цикл уборки, «давно не был» и просроченное дело — это одна арифметика в разных
+словах.
 
 ## Локально
 
 ```bash
 npm run serve   # http://localhost:8782
-npm test        # 102 проверки доменной логики
+npm test        # 156 проверок доменной логики
 ```
 
 Живьём: [пульт](https://xdecent0.github.io/life/hub/) ·
 [Кухня](https://xdecent0.github.io/life/apps/kitchen/) ·
 [Вещи](https://xdecent0.github.io/life/apps/things/) ·
 [Уборка](https://xdecent0.github.io/life/apps/clean/) ·
-[Места](https://xdecent0.github.io/life/apps/places/)
+[Места](https://xdecent0.github.io/life/apps/places/) ·
+[Проекты](https://xdecent0.github.io/life/apps/projects/)
